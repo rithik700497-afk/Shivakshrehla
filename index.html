@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>The Food Corner — Digital Menu</title>
+<meta name="description" content="Scan, browse and order — a QR-based digital restaurant menu." />
+<meta name="theme-color" content="#f7f7f7" />
+
+<!-- Optional web font (site remains fully usable offline via system font fallback) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Splash Screen -->
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-content">
+    <img src="assets/logo.png" alt="Restaurant Logo" class="splash-logo">
+
+    <h1 id="splashRestaurantName">SHIVAKSH RESTAURANT</h1>
+
+    <p>Fresh • Delicious • Made with Love</p>
+
+    <div class="splash-table" id="splashTable">Table</div>
+
+    <div class="splash-loader"></div>
+  </div>
+</div>
+  
+
+<div class="app">
+
+  <!-- ============================ HEADER ============================ -->
+  <header class="header">
+    <div class="brand">
+  <img src="assets/logo.png" alt="Restaurant Logo" class="header-logo">
+
+  <div>
+    <h1 class="brand-name" id="restaurantName">Shivaksha Restro</h1>
+    <p class="brand-subtitle" id="restaurantSubtitle">
+      Family Restaurant
+      </p>
+    </div>
+  </div>
+    <div class="table-badge" id="tableBadge">Table</div>
+  </header>
+
+  <!-- ============================ SEARCH ============================ -->
+  <div class="search-wrapper">
+    <div class="search">
+      <span class="search-icon" aria-hidden="true">🔍</span>
+      <label for="searchInput" class="visually-hidden">Search menu</label>
+      <input type="search" id="searchInput" placeholder="Search for dishes, cuisines..." autocomplete="off" />
+      <button class="search-clear" id="searchClear" aria-label="Clear search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================ BANNER ============================ -->
+  <div class="banner-wrapper">
+    <div class="banner-viewport" id="bannerViewport">
+      <div class="banner-track" id="bannerTrack"><!-- JS renders one .banner-slide per banner --></div>
+      <div class="banner-dots" id="bannerDots"></div>
+    </div>
+  </div>
+
+  <!-- ============================ VEG / NON-VEG FILTER ============================ -->
+  <div class="filter-area" id="filterArea">
+    <button class="filter is-active" data-type="all">All</button>
+    <button class="filter" data-type="veg"><span class="veg-dot"></span> Veg</button>
+    <button class="filter" data-type="nonveg"><span class="nonveg-dot"></span> Non-Veg</button>
+  </div>
+
+  <!-- ============================ CATEGORIES ============================ -->
+  <nav class="categories" id="categories" aria-label="Menu categories"></nav>
+
+  <!-- ============================ MENU TITLE ============================ -->
+  <div class="menu-title">
+    <div>
+      <span class="menu-small">Our Menu</span>
+      <h2 id="menuHeading">All Dishes</h2>
+    </div>
+    <span class="dishes-count" id="dishesCount">0 dishes</span>
+  </div>
+
+  <!-- ============================ FOOD GRID ============================ -->
+  <section class="food-grid" id="menuGrid" aria-live="polite"></section>
+
+  <!-- ============================ QR DOCS FOOTER ============================ -->
+  <div class="footer-info">
+    <p class="footer-info__title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e63232" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/><line x1="14" y1="17.5" x2="21" y2="17.5"/></svg>
+      For restaurant owners: generating table QR codes
+    </p>
+    <p class="footer-info__desc">Each table gets its own link with a <code>?table=</code> number. Point any free QR generator at the link below for each table — no app or account needed.</p>
+    <div class="footer-info__rows" id="qrDocsRows"></div>
+  </div>
+
+  <p class="footer-credit">Demo prototype · Static site · No backend</p>
+</div>
+
+<!-- ============================ FLOATING CART BAR ============================ -->
+<button class="cart-bar" id="cartBar" aria-label="View cart">
+  <span class="cart-left">
+    <span class="cart-icon">
+      🛍️
+      <span class="cart-count-badge" id="cartBadge">0</span>
+    </span>
+    <span>
+      <span class="cart-items" id="cartCount">0 items</span><br />
+      <span class="cart-total" id="cartTotalLabel">₹0</span>
+    </span>
+  </span>
+  <span class="view-cart">View Cart →</span>
+</button>
+
+<!-- ============================ FLOATING SORT BUTTON ============================ -->
+<button id="floatingSortBtn" class="floating-sort-btn sort-hidden" type="button">Sort</button>
+
+<div id="sortMenu" class="sort-menu">
+  <div class="sort-menu-title">Sort By</div>
+  <button type="button" data-sort="default" class="is-active">Default</button>
+  <button type="button" data-sort="low">Price Low → High</button>
+  <button type="button" data-sort="high">Price High → Low</button>
+  <button type="button" data-sort="name">Name A → Z</button>
+</div>
+
+<!-- ============================ FOOD DETAIL SHEET ============================ -->
+<div class="sheet-backdrop" id="detailBackdrop"></div>
+<div class="sheet" id="detailSheet" role="dialog" aria-modal="true" aria-label="Dish details">
+  <div class="sheet__handle"></div>
+  <button class="sheet__close" data-close="detailSheet" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sheet__scroll">
+    <div class="detail-media" id="detailMedia"></div>
+    <div class="detail-body">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <span class="food-mark" id="detailVegMark" style="position:static;" aria-hidden="true"></span>
+        <span class="food-type" id="detailVegLabel" style="margin:0;">Veg</span>
+      </div>
+      <h2 class="detail-name" id="detailName">Dish name</h2>
+      <p class="detail-desc" id="detailDesc">Description</p>
+
+      <div class="detail-row">
+        <span class="detail-price" id="detailPrice">₹0</span>
+        <div class="quantity" id="detailQtyBox" style="position:static;">
+          <button type="button" id="detailQtyDec" aria-label="Decrease quantity">−</button>
+          <span id="detailQty">1</span>
+          <button type="button" id="detailQtyInc" aria-label="Increase quantity">+</button>
+        </div>
+      </div>
+
+      <p class="detail-unavailable-note" id="detailUnavailableNote" style="display:none;">This item is currently out of stock and can't be added right now.</p>
+
+      <button class="detail-add-btn" id="detailAddBtn">Add to Cart</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ CART SHEET ============================ -->
+<div class="sheet-backdrop" id="cartBackdrop"></div>
+<div class="sheet" id="cartSheet" role="dialog" aria-modal="true" aria-label="Your cart">
+  <div class="sheet__handle"></div>
+  <button class="sheet__close" data-close="cartSheet" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sheet__scroll">
+    <h2 class="sheet-title">Your Cart</h2>
+    <div class="cart-list" id="cartList"></div>
+    <div class="cart-summary" id="cartSummary">
+      <div class="summary-line"><span>Subtotal</span><span id="cartSubtotal">₹0</span></div>
+      <div class="summary-line summary-line--total"><span>Total</span><span class="price" id="cartTotal">₹0</span></div>
+      <button class="primary-btn" id="goToCheckoutBtn">Proceed to Checkout</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ CHECKOUT SHEET ============================ -->
+<div class="sheet-backdrop" id="checkoutBackdrop"></div>
+<div class="sheet" id="checkoutSheet" role="dialog" aria-modal="true" aria-label="Checkout">
+  <div class="sheet__handle"></div>
+  <button class="sheet__close" data-close="checkoutSheet" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sheet__scroll">
+    <h2 class="sheet-title">Demo Checkout</h2>
+    <div class="checkout-block">
+      <div class="checkout-meta">
+        <div class="checkout-meta__item">
+          <p class="checkout-meta__label">Restaurant</p>
+          <p class="checkout-meta__value" id="checkoutRestaurant">The Food Corner</p>
+        </div>
+        <div class="checkout-meta__item">
+          <p class="checkout-meta__label">Table</p>
+          <p class="checkout-meta__value" id="checkoutTable">Table 1</p>
+        </div>
+      </div>
+
+      <p class="menu-small" style="padding:0;margin-bottom:8px;">Order Summary</p>
+      <div id="checkoutItems" style="margin-bottom:10px;"></div>
+      <div class="summary-line summary-line--total" style="border-top:1px solid var(--border);padding-top:10px;">
+        <span>Total</span><span class="price" id="checkoutTotal">₹0</span>
+      </div>
+
+      <div class="field" style="margin-top:18px;">
+        <label for="customerName">Customer name (optional)</label>
+        <input type="text" id="customerName" placeholder="Your name" />
+      </div>
+      <div class="field">
+        <label for="specialInstructions">Special instructions</label>
+        <textarea id="specialInstructions" rows="3" placeholder="Less spicy, no onions, etc."></textarea>
+      </div>
+
+      <button class="primary-btn" id="placeOrderBtn">Place Demo Order</button>
+      <p class="footer-info__desc" style="text-align:center;margin-top:10px;">This is a static prototype — no payment is taken and no real order is sent to a kitchen.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ CONFIRMATION SHEET ============================ -->
+<div class="sheet-backdrop" id="confirmBackdrop"></div>
+<div class="sheet" id="confirmSheet" role="dialog" aria-modal="true" aria-label="Order confirmed">
+  <div class="sheet__handle"></div>
+  <button class="sheet__close" data-close="confirmSheet" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sheet__scroll">
+    <div class="confirm-body">
+      <div class="confirm-check">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2 class="confirm-title">Order Received</h2>
+      <span class="confirm-table" id="confirmTable">Table 1</span>
+      <p class="confirm-note" id="confirmName">Your demo order has been recorded locally.</p>
+      <div class="confirm-order-id">
+        <p class="confirm-order-id__label">Order ID</p>
+        <p class="confirm-order-id__value" id="confirmOrderId">#ORD1024</p>
+      </div>
+      <button class="ghost-btn" id="confirmDoneBtn" style="margin-top:0;">Back to Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ TOAST ============================ -->
+<div class="toast" id="toast">Added to cart</div>
+
+<script src="menu.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
