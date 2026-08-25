@@ -59,8 +59,9 @@
   <div class="search-wrapper">
     <div class="search">
       <span class="search-icon" aria-hidden="true">🔍</span>
-      <label for="searchInput" class="visually-hidden">Search menu</label>
-      <input type="search" id="searchInput" placeholder="Search for dishes, cuisines..." autocomplete="off" />
+      <button type="button" class="search-trigger" id="searchTrigger" aria-label="Search the menu">
+        <span class="search-trigger__text" id="searchTriggerText">Search for dishes, cuisines...</span>
+      </button>
       <button class="search-clear" id="searchClear" aria-label="Clear search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -106,16 +107,6 @@
       </div>
     </div>
     <div class="recently-viewed-track" id="recentlyViewedTrack"></div>
-  </div>
-
-  <!-- ============================ QR DOCS FOOTER ============================ -->
-  <div class="footer-info">
-    <p class="footer-info__title">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e63232" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><line x1="14" y1="14" x2="14" y2="21"/><line x1="21" y1="14" x2="21" y2="21"/><line x1="14" y1="17.5" x2="21" y2="17.5"/></svg>
-      For restaurant owners: generating table QR codes
-    </p>
-    <p class="footer-info__desc">Each table gets its own link with a <code>?table=</code> number. Point any free QR generator at the link below for each table — no app or account needed.</p>
-    <div class="footer-info__rows" id="qrDocsRows"></div>
   </div>
 
   <p class="footer-credit">Demo prototype · Static site · No backend</p>
@@ -331,6 +322,24 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- ============================ FULL-PAGE SEARCH ============================ -->
+<div class="search-overlay" id="searchOverlay" role="dialog" aria-modal="true" aria-label="Search the menu">
+  <div class="search-overlay__bar">
+    <button type="button" class="search-overlay__back" id="searchOverlayBack" aria-label="Close search">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+    </button>
+    <div class="search-overlay__input-wrap">
+      <span class="search-icon" aria-hidden="true">🔍</span>
+      <label for="searchOverlayInput" class="visually-hidden">Search menu</label>
+      <input type="search" id="searchOverlayInput" placeholder="Search for dishes, cuisines..." autocomplete="off" />
+      <button class="search-clear" id="searchOverlayClear" aria-label="Clear search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="search-overlay__body" id="searchOverlayBody"></div>
 </div>
 
 <!-- ============================ TOAST ============================ -->

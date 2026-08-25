@@ -202,6 +202,13 @@
     const current = cart[id] || 0;
     setQty(id, current + (qty || 1));
     showToast("Added to cart");
+    const badge = document.getElementById("cartBadge");
+    if (badge) {
+      badge.classList.remove("pulse");
+      // force reflow so the animation can restart on back-to-back adds
+      void badge.offsetWidth;
+      badge.classList.add("pulse");
+    }
   }
 
   /* --------------------------------------------------------------------
@@ -528,23 +535,273 @@
   }
 
   /* --------------------------------------------------------------------
-     6. SEARCH
+     6. SEARCH — full-page overlay (Zomato-style), backed by a
+        precomputed search index so filtering stays instant even as the
+        menu grows. The small header bar is a tap-to-open trigger; all
+        typing happens inside the overlay.
      -------------------------------------------------------------------- */
-  const searchInput = document.getElementById("searchInput");
-  const searchClear = document.getElementById("searchClear");
+  const RECENT_SEARCHES_KEY = "foodcorner_recent_searches_v1";
+  const RECENT_SEARCHES_MAX = 6;
+  let recentSearches = loadRecentSearches();
+  let searchIndex = [];
 
-  searchInput.addEventListener("input", () => {
-    searchTerm = searchInput.value;
-    searchClear.classList.toggle("is-visible", searchTerm.length > 0);
-    renderGrid();
-  });
+  function loadRecentSearches() {
+    try {
+      const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Could not read recent searches from localStorage:", e);
+      return [];
+    }
+  }
+
+  function saveRecentSearches() {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+    } catch (e) {
+      console.warn("Could not save recent searches to localStorage:", e);
+    }
+  }
+
+  function addRecentSearch(term) {
+    term = term.trim();
+    if (!term) return;
+    recentSearches = recentSearches.filter((t) => t.toLowerCase() !== term.toLowerCase());
+    recentSearches.unshift(term);
+    recentSearches = recentSearches.slice(0, RECENT_SEARCHES_MAX);
+    saveRecentSearches();
+  }
+
+  // Built once from MENU_ITEMS: each entry pairs an item with a single
+  // lowercase "haystack" string (name + description + category label) so
+  // every keystroke is a plain substring check instead of re-normalizing
+  // every field on every render.
+  function buildSearchIndex() {
+    searchIndex = MENU_ITEMS.map((item) => ({
+      item,
+      haystack: [item.name, item.description, categoryLabel(item.category)].join(" ").toLowerCase(),
+    }));
+  }
+
+  function searchIndexResults(term) {
+    const t = term.trim().toLowerCase();
+    if (!t) return [];
+    const matches = searchIndex.filter((entry) => entry.haystack.includes(t));
+    matches.sort((a, b) => {
+      const aStarts = a.item.name.toLowerCase().startsWith(t) ? 0 : 1;
+      const bStarts = b.item.name.toLowerCase().startsWith(t) ? 0 : 1;
+      return aStarts - bStarts;
+    });
+    return matches.map((entry) => entry.item);
+  }
+
+  const searchTrigger = document.getElementById("searchTrigger");
+  const searchTriggerText = document.getElementById("searchTriggerText");
+  const searchClear = document.getElementById("searchClear");
+  const searchOverlay = document.getElementById("searchOverlay");
+  const searchOverlayInput = document.getElementById("searchOverlayInput");
+  const searchOverlayClear = document.getElementById("searchOverlayClear");
+  const searchOverlayBack = document.getElementById("searchOverlayBack");
+  const searchOverlayBody = document.getElementById("searchOverlayBody");
+
+  function syncSearchTrigger() {
+    const hasTerm = searchTerm.trim().length > 0;
+    searchTriggerText.textContent = hasTerm ? searchTerm : "Search for dishes, cuisines...";
+    searchTriggerText.classList.toggle("has-term", hasTerm);
+    searchClear.classList.toggle("is-visible", hasTerm);
+  }
+
+  function openSearchOverlay() {
+    searchOverlayInput.value = searchTerm;
+    searchOverlayClear.classList.toggle("is-visible", searchTerm.length > 0);
+    searchOverlay.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    renderSearchOverlay();
+    setTimeout(() => searchOverlayInput.focus(), 260);
+  }
+
+  function closeSearchOverlay() {
+    searchOverlay.classList.remove("is-open");
+    const anySheetOpen = document.querySelectorAll(".sheet.is-open").length > 0;
+    if (!anySheetOpen) document.body.style.overflow = "";
+    syncSearchTrigger();
+  }
+
+  function renderSearchOverlay() {
+    const term = searchOverlayInput.value;
+
+    if (!term.trim()) {
+      const recentHtml = recentSearches.length ? `
+        <div class="search-section">
+          <div class="search-section__head">
+            <span>Recent Searches</span>
+            <button type="button" id="clearRecentSearches">Clear</button>
+          </div>
+          <div class="search-chip-row">
+            ${recentSearches.map((t) => `<button type="button" class="search-chip" data-term="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("")}
+          </div>
+        </div>` : "";
+
+      searchOverlayBody.innerHTML = `
+        ${recentHtml}
+        <div class="search-section">
+          <div class="search-section__head"><span>Popular Categories</span></div>
+          <div class="search-chip-row">
+            ${CATEGORIES.map((c) => `<button type="button" class="search-chip" data-cat="${c.id}">${escapeHtml(c.label)}</button>`).join("")}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const results = searchIndexResults(term);
+
+    if (results.length === 0) {
+      searchOverlayBody.innerHTML = `
+        <div class="empty-state" style="padding-top:50px;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <strong>No dishes found</strong>
+          <p>Try a different dish name, description, or cuisine.</p>
+        </div>`;
+      return;
+    }
+
+    searchOverlayBody.innerHTML = `<div class="search-results">${results.map(searchResultRowTemplate).join("")}</div>`;
+  }
+
+  function searchResultRowTemplate(item, index) {
+    const qty = cart[item.id] || 0;
+    const foodImage = foodImagePath(item);
+    const vegClass = item.type === "veg" ? "" : "nonveg";
+    let actionHtml;
+    if (!item.available) {
+      actionHtml = `<button class="search-add-btn" disabled aria-label="Out of stock">✕</button>`;
+    } else if (qty > 0) {
+      actionHtml = `
+        <div class="search-qty" data-id="${item.id}">
+          <button type="button" data-action="dec" aria-label="Decrease quantity">−</button>
+          <span>${qty}</span>
+          <button type="button" data-action="inc" aria-label="Increase quantity">+</button>
+        </div>`;
+    } else {
+      actionHtml = `<button class="search-add-btn" data-action="add" data-id="${item.id}" aria-label="Add ${escapeHtml(item.name)}">+</button>`;
+    }
+
+    return `
+      <article class="search-result-row" data-open-id="${item.id}" style="animation-delay:${Math.min(index, 8) * 30}ms;">
+        <div class="search-result-row__img">
+          <img
+            src="${foodImage}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <div class="search-result-row__info">
+          <p class="search-result-row__name">${escapeHtml(item.name)}</p>
+          <p class="search-result-row__desc">${escapeHtml(item.description)}</p>
+          <p class="search-result-row__price">₹${item.price}</p>
+        </div>
+        <div class="search-result-row__action">${actionHtml}</div>
+      </article>
+    `;
+  }
+
+  searchTrigger.addEventListener("click", openSearchOverlay);
 
   searchClear.addEventListener("click", () => {
     searchTerm = "";
-    searchInput.value = "";
-    searchClear.classList.remove("is-visible");
-    searchInput.focus();
+    syncSearchTrigger();
     renderGrid();
+  });
+
+  searchOverlayBack.addEventListener("click", closeSearchOverlay);
+
+  searchOverlayInput.addEventListener("input", () => {
+    searchTerm = searchOverlayInput.value;
+    searchOverlayClear.classList.toggle("is-visible", searchTerm.length > 0);
+    renderSearchOverlay();
+    renderGrid();
+  });
+
+  searchOverlayInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && searchOverlayInput.value.trim()) {
+      addRecentSearch(searchOverlayInput.value);
+    }
+  });
+
+  searchOverlayClear.addEventListener("click", () => {
+    searchTerm = "";
+    searchOverlayInput.value = "";
+    searchOverlayClear.classList.remove("is-visible");
+    renderSearchOverlay();
+    renderGrid();
+    searchOverlayInput.focus();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && searchOverlay.classList.contains("is-open")) closeSearchOverlay();
+  });
+
+  searchOverlayBody.addEventListener("click", (e) => {
+    const chip = e.target.closest(".search-chip");
+    if (chip) {
+      if (chip.dataset.term) {
+        searchOverlayInput.value = chip.dataset.term;
+        searchTerm = chip.dataset.term;
+        renderSearchOverlay();
+        renderGrid();
+        searchOverlayInput.focus();
+      } else if (chip.dataset.cat) {
+        activeCategory = chip.dataset.cat;
+        renderCategories();
+        renderGrid();
+        closeSearchOverlay();
+      }
+      return;
+    }
+
+    const clearRecentBtn = e.target.closest("#clearRecentSearches");
+    if (clearRecentBtn) {
+      recentSearches = [];
+      saveRecentSearches();
+      renderSearchOverlay();
+      return;
+    }
+
+    const addBtn = e.target.closest("[data-action='add']");
+    if (addBtn) {
+      e.stopPropagation();
+      addToCart(addBtn.dataset.id);
+      renderSearchOverlay();
+      return;
+    }
+
+    const decBtn = e.target.closest("[data-action='dec']");
+    if (decBtn) {
+      e.stopPropagation();
+      const row = decBtn.closest("[data-id]");
+      setQty(row.dataset.id, (cart[row.dataset.id] || 0) - 1);
+      renderSearchOverlay();
+      return;
+    }
+
+    const incBtn = e.target.closest("[data-action='inc']");
+    if (incBtn) {
+      e.stopPropagation();
+      const row = incBtn.closest("[data-id]");
+      setQty(row.dataset.id, (cart[row.dataset.id] || 0) + 1);
+      renderSearchOverlay();
+      return;
+    }
+
+    const row = e.target.closest(".search-result-row");
+    if (row) {
+      addRecentSearch(searchOverlayInput.value);
+      closeSearchOverlay();
+      openDetail(row.dataset.openId);
+    }
   });
 
   /* --------------------------------------------------------------------
@@ -1086,16 +1343,6 @@ function renderBannerSlides() {
   /* --------------------------------------------------------------------
      15. QR DOCS FOOTER — build example links relative to current page
      -------------------------------------------------------------------- */
-  function renderQrDocs() {
-    const base = window.location.origin + window.location.pathname;
-    const rows = [1, 2, 3].map((n) => `
-      <div class="footer-info__row">
-        <strong>Table ${n}</strong>
-        <code>${escapeHtml(base)}?table=${n}</code>
-      </div>
-    `).join("");
-    document.getElementById("qrDocsRows").innerHTML = rows;
-  }
 
   /* --------------------------------------------------------------------
      16. INIT — each step is wrapped so one failure can't cascade and
@@ -1110,12 +1357,13 @@ function renderBannerSlides() {
   }, "restaurant info");
 
   safeCall(renderTableBadge, "renderTableBadge");
+  safeCall(buildSearchIndex, "buildSearchIndex");
+  safeCall(syncSearchTrigger, "syncSearchTrigger");
   safeCall(renderCategories, "renderCategories");
   safeCall(renderTypeFilter, "renderTypeFilter");
   safeCall(renderGrid, "renderGrid");
   safeCall(renderCartBar, "renderCartBar");
   safeCall(renderRecentlyViewed, "renderRecentlyViewed");
-  safeCall(renderQrDocs, "renderQrDocs");
   safeCall(() => {
     renderBannerSlides();
     goToBanner(0, false);
