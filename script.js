@@ -1383,7 +1383,7 @@ function renderBannerSlides() {
         setTimeout(() => {
           if (splashScreen.parentNode) splashScreen.remove();
         }, 500);
-      }, 1000);
+      }, 2000);
     }
   }, "splash screen");
 })();
