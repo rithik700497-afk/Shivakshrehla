@@ -71,6 +71,46 @@ input, textarea { font-family: inherit; }
   position: relative;
   padding-bottom: 130px;
 }
+.made-by {
+  margin: 2px 0 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  letter-spacing: 0.5px;
+
+  opacity: 0;
+  transform: translateY(10px);
+  animation: madeByEnter 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
+}
+
+.made-by span {
+  color: #e63232;
+  font-weight: 700;
+  text-shadow: 0 0 0 rgba(230, 50, 50, 0);
+  animation: nameGlow 1.8s ease-in-out 1.4s infinite alternate;
+}
+
+@keyframes madeByEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nameGlow {
+  from {
+    text-shadow: 0 0 0 rgba(230, 50, 50, 0);
+  }
+
+  to {
+    text-shadow: 0 0 10px rgba(230, 50, 50, 0.3);
+  }
+}
 
 /* ==========================================================================
    Header
@@ -1082,3 +1122,216 @@ input, textarea { font-family: inherit; }
     transform: translateY(0) scale(1);
   }
 }
+
+.splash-tagline {
+  margin: 6px 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.9;
+}
+
+.splash-credit {
+  margin: 20px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0.3px;
+}
+
+.splash-credit span { color: var(--accent); font-weight: 700; }
+
+/* ==========================================================================
+   Header actions (table badge + settings)
+   ========================================================================== */
+.header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.icon-btn {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s var(--ease);
+}
+
+.icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.icon-btn:active { transform: scale(0.92); }
+
+/* ==========================================================================
+   Favorite (heart) button — on food cards and detail sheet
+   ========================================================================== */
+.fav-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s var(--ease), color 0.15s ease;
+}
+
+.fav-btn svg { width: 15px; height: 15px; }
+.fav-btn:active { transform: scale(0.85); }
+.fav-btn.is-fav { color: var(--accent); }
+.fav-btn.is-fav svg { fill: var(--accent); }
+
+.detail-media .fav-btn {
+  top: 14px;
+  left: 14px;
+  right: auto;
+  width: 38px;
+  height: 38px;
+}
+.detail-media .fav-btn svg { width: 19px; height: 19px; }
+
+/* ==========================================================================
+   Recently viewed strip
+   ========================================================================== */
+.recently-viewed { padding-top: 4px; }
+
+.recently-viewed-track {
+  display: flex;
+  gap: 12px;
+  padding: 4px 5% 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.recently-viewed-track::-webkit-scrollbar { display: none; }
+
+.recently-viewed-card {
+  flex-shrink: 0;
+  width: 120px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  text-align: left;
+}
+
+.recently-viewed-card__img { width: 100%; height: 80px; background: var(--accent-soft); overflow: hidden; }
+.recently-viewed-card__img img, .recently-viewed-card__img svg { width: 100%; height: 100%; object-fit: cover; }
+.recently-viewed-card__name {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0;
+  padding: 8px 9px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
+
+/* ==========================================================================
+   Settings sheet
+   ========================================================================== */
+.settings-list { padding: 4px 22px 24px; display: flex; flex-direction: column; gap: 4px; }
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--border);
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.settings-row--action { color: var(--ink); cursor: pointer; }
+.settings-row--action:hover { color: var(--accent); }
+.settings-row--action svg { color: var(--ink-faint); flex-shrink: 0; }
+.settings-row--action:hover svg { color: var(--accent); }
+
+.settings-row__label { font-size: 14.5px; font-weight: 600; margin: 0 0 2px; }
+.settings-row__desc { font-size: 12px; color: var(--ink-soft); margin: 0; }
+
+.settings-about { padding: 16px 4px 4px; }
+.settings-about .settings-row__desc { margin-top: 6px; line-height: 1.5; }
+
+.switch {
+  width: 46px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--border-strong);
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s var(--ease);
+}
+
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"] .switch__knob { transform: translateX(20px); }
+
+/* ==========================================================================
+   Small confirm dialog (e.g. clear cart)
+   ========================================================================== */
+.sheet--small { max-width: 380px; }
+
+.confirm-dialog { padding: 10px 24px 26px; text-align: center; }
+.confirm-dialog__title { font-size: 18px; font-weight: 700; margin: 6px 0 8px; }
+.confirm-dialog__desc { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; line-height: 1.5; }
+.confirm-dialog__actions { display: flex; gap: 10px; }
+.confirm-dialog__actions button { flex: 1; }
+
+/* ==========================================================================
+   Food image fallback wrapper (JS-inserted when a JPG fails to load)
+   ========================================================================== */
+.food-image-fallback { display: block; }
+.food-image-fallback svg { width: 100%; height: 100%; display: block; }
+
+/* ==========================================================================
+   Dark mode — same accent, dark surfaces. Toggled via [data-theme="dark"]
+   on <html>, stored in localStorage.
+   ========================================================================== */
+[data-theme="dark"] {
+  --bg: #121212;
+  --surface: #1c1c1c;
+  --ink: #f2f2f2;
+  --ink-soft: #b3b3b3;
+  --ink-faint: #7a7a7a;
+  --border: #2c2c2c;
+  --border-strong: #3a3a3a;
+  --accent-soft: #3a1f1f;
+}
+
+[data-theme="dark"] .splash-screen { background: #121212; }
+[data-theme="dark"] .food-image { background: #262626; }
+[data-theme="dark"] .cart-summary,
+[data-theme="dark"] .checkout-meta__item,
+[data-theme="dark"] .confirm-order-id,
+[data-theme="dark"] .footer-info__row,
+[data-theme="dark"] .recently-viewed-card__img { background: #232323; }
+[data-theme="dark"] .fav-btn { background: rgba(28, 28, 28, 0.85); }
+[data-theme="dark"] .confirm-check { background: #1e2f22; }

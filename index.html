@@ -22,11 +22,13 @@
 
     <h1 id="splashRestaurantName">SHIVAKSH RESTAURANT</h1>
 
-    <p>Fresh • Delicious • Made with Love</p>
+    <p class="splash-tagline">Digital Menu</p>
 
     <div class="splash-table" id="splashTable">Table</div>
 
     <div class="splash-loader"></div>
+
+    <p class="splash-credit">Made by <span>Ritik</span></p>
   </div>
 </div>
   
@@ -45,7 +47,12 @@
       </p>
     </div>
   </div>
-    <div class="table-badge" id="tableBadge">Table</div>
+    <div class="header-actions">
+      <div class="table-badge" id="tableBadge">Table</div>
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
   </header>
 
   <!-- ============================ SEARCH ============================ -->
@@ -89,6 +96,17 @@
 
   <!-- ============================ FOOD GRID ============================ -->
   <section class="food-grid" id="menuGrid" aria-live="polite"></section>
+
+  <!-- ============================ RECENTLY VIEWED ============================ -->
+  <div class="recently-viewed" id="recentlyViewedSection" style="display:none;">
+    <div class="menu-title" style="padding-top:6px;">
+      <div>
+        <span class="menu-small">Recently Viewed</span>
+        <h2 style="font-size:19px;">You looked at these</h2>
+      </div>
+    </div>
+    <div class="recently-viewed-track" id="recentlyViewedTrack"></div>
+  </div>
 
   <!-- ============================ QR DOCS FOOTER ============================ -->
   <div class="footer-info">
@@ -176,6 +194,23 @@
       <div class="summary-line"><span>Subtotal</span><span id="cartSubtotal">₹0</span></div>
       <div class="summary-line summary-line--total"><span>Total</span><span class="price" id="cartTotal">₹0</span></div>
       <button class="primary-btn" id="goToCheckoutBtn">Proceed to Checkout</button>
+      <button class="ghost-btn" id="clearCartBtn" type="button">Clear Cart</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ CLEAR CART CONFIRM SHEET ============================ -->
+<div class="sheet-backdrop" id="clearCartBackdrop"></div>
+<div class="sheet sheet--small" id="clearCartSheet" role="dialog" aria-modal="true" aria-label="Clear cart">
+  <div class="sheet__handle"></div>
+  <div class="sheet__scroll">
+    <div class="confirm-dialog">
+      <h2 class="confirm-dialog__title">Clear your cart?</h2>
+      <p class="confirm-dialog__desc">This removes every item you've added. This can't be undone.</p>
+      <div class="confirm-dialog__actions">
+        <button class="ghost-btn" id="clearCartCancelBtn" type="button" style="margin-top:0;">Cancel</button>
+        <button class="primary-btn" id="clearCartConfirmBtn" type="button" style="margin-top:0;background:var(--nonveg);">Clear Cart</button>
+      </div>
     </div>
   </div>
 </div>
@@ -242,6 +277,58 @@
         <p class="confirm-order-id__value" id="confirmOrderId">#ORD1024</p>
       </div>
       <button class="ghost-btn" id="confirmDoneBtn" style="margin-top:0;">Back to Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ SETTINGS SHEET ============================ -->
+<div class="sheet-backdrop" id="settingsBackdrop"></div>
+<div class="sheet" id="settingsSheet" role="dialog" aria-modal="true" aria-label="Settings">
+  <div class="sheet__handle"></div>
+  <button class="sheet__close" data-close="settingsSheet" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="sheet__scroll">
+    <h2 class="sheet-title">Settings</h2>
+    <div class="settings-list">
+      <div class="settings-row">
+        <div>
+          <p class="settings-row__label">Dark Mode</p>
+          <p class="settings-row__desc">Easier on the eyes at night</p>
+        </div>
+        <button class="switch" id="darkModeToggle" type="button" role="switch" aria-checked="false" aria-label="Toggle dark mode">
+          <span class="switch__knob"></span>
+        </button>
+      </div>
+
+      <button class="settings-row settings-row--action" id="settingsFavoritesBtn" type="button">
+        <div>
+          <p class="settings-row__label">Favorites</p>
+          <p class="settings-row__desc" id="settingsFavoritesCount">0 saved dishes</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+
+      <button class="settings-row settings-row--action" id="settingsClearCartBtn" type="button">
+        <div>
+          <p class="settings-row__label">Clear Cart</p>
+          <p class="settings-row__desc">Empty everything in your cart</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+
+      <button class="settings-row settings-row--action" id="settingsShareBtn" type="button">
+        <div>
+          <p class="settings-row__label">Share Menu</p>
+          <p class="settings-row__desc">Send this menu link to someone</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      </button>
+
+      <div class="settings-about">
+        <p class="settings-row__label">About</p>
+        <p class="settings-row__desc">The Food Corner — static QR digital menu prototype. No backend, no payments, no data leaves your device except your cart in local storage.</p>
+      </div>
     </div>
   </div>
 </div>

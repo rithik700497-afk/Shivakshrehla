@@ -8,6 +8,36 @@
   "use strict";
 
   /* --------------------------------------------------------------------
+     0. ERROR PROTECTION — the splash screen must NEVER stay stuck
+        because of a JS error anywhere else on the page. forceHideSplash
+        is idempotent and safe to call multiple times; a hard-cap timer
+        below guarantees it fires even if init() itself throws.
+     -------------------------------------------------------------------- */
+  function forceHideSplash() {
+    const splashScreen = document.getElementById("splashScreen");
+    if (!splashScreen) return;
+    splashScreen.classList.add("hide");
+    setTimeout(() => {
+      if (splashScreen.parentNode) splashScreen.remove();
+    }, 500);
+  }
+
+  // Absolute safety net: no matter what else fails, the splash is gone
+  // within ~3.5s of page load.
+  setTimeout(forceHideSplash, 3500);
+
+  window.addEventListener("error", forceHideSplash);
+  window.addEventListener("unhandledrejection", forceHideSplash);
+
+  function safeCall(fn, label) {
+    try {
+      fn();
+    } catch (err) {
+      console.error(`[FoodCorner] ${label} failed:`, err);
+    }
+  }
+
+  /* --------------------------------------------------------------------
      1. TABLE NUMBER — read-only from the URL, never editable by hand
      -------------------------------------------------------------------- */
   function getTableNumber() {
@@ -39,12 +69,86 @@
      2. STATE
      -------------------------------------------------------------------- */
   const CART_KEY = "foodcorner_cart_v1";
+  const FAVORITES_KEY = "foodcorner_favorites_v1";
+  const RECENTLY_VIEWED_KEY = "foodcorner_recently_viewed_v1";
+  const THEME_KEY = "foodcorner_theme_v1";
+  const RECENTLY_VIEWED_MAX = 8;
+
   let activeCategory = "all";
   let activeType = "all"; // all | veg | nonveg
   let activeSort = "default"; // default | low | high | name
   let searchTerm = "";
   let cart = loadCart(); // { [itemId]: qty }
+  let favorites = loadFavorites(); // { [itemId]: true }
+  let recentlyViewed = loadRecentlyViewed(); // [itemId, ...] most recent first
   let activeDetailItem = null;
+
+  function loadFavorites() {
+    try {
+      const raw = localStorage.getItem(FAVORITES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.warn("Could not read favorites from localStorage:", e);
+      return {};
+    }
+  }
+
+  function saveFavorites() {
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+    } catch (e) {
+      console.warn("Could not save favorites to localStorage:", e);
+    }
+  }
+
+  function isFavorite(id) {
+    return !!favorites[Number(id)];
+  }
+
+  function toggleFavorite(id) {
+    id = Number(id);
+    if (favorites[id]) {
+      delete favorites[id];
+    } else {
+      favorites[id] = true;
+    }
+    saveFavorites();
+    renderAll();
+    renderCategories();
+    if (settingsSheetOpen) renderSettingsCounts();
+  }
+
+  function favoritesCount() {
+    return Object.keys(favorites).length;
+  }
+
+  function loadRecentlyViewed() {
+    try {
+      const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Could not read recently viewed from localStorage:", e);
+      return [];
+    }
+  }
+
+  function saveRecentlyViewed() {
+    try {
+      localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(recentlyViewed));
+    } catch (e) {
+      console.warn("Could not save recently viewed to localStorage:", e);
+    }
+  }
+
+  function addRecentlyViewed(id) {
+    id = Number(id);
+    recentlyViewed = recentlyViewed.filter((existingId) => existingId !== id);
+    recentlyViewed.unshift(id);
+    recentlyViewed = recentlyViewed.slice(0, RECENTLY_VIEWED_MAX);
+    saveRecentlyViewed();
+    renderRecentlyViewed();
+  }
 
   function loadCart() {
     try {
@@ -185,9 +289,16 @@
     }[c]));
   }
 
+  // "favorites" is a virtual category layered on top of CATEGORIES (which
+  // stays exactly as defined in menu.js) — it's rendered as an extra chip
+  // and handled specially in getFilteredItems().
   function renderCategories() {
     const wrap = document.getElementById("categories");
-    wrap.innerHTML = CATEGORIES.map((c) => `
+    const favChip = `
+      <button class="chip chip--favorites ${activeCategory === "favorites" ? "is-active" : ""}" data-cat="favorites">
+        ♥ Favorites${favoritesCount() ? ` (${favoritesCount()})` : ""}
+      </button>`;
+    wrap.innerHTML = favChip + CATEGORIES.map((c) => `
       <button class="chip ${c.id === activeCategory ? "is-active" : ""}" data-cat="${c.id}">
         ${escapeHtml(c.label)}
       </button>
@@ -216,13 +327,21 @@
     renderGrid();
   });
 
+  function categoryLabel(categoryId) {
+    const match = CATEGORIES.find((c) => c.id === categoryId);
+    return match ? match.label : "";
+  }
+
   function getFilteredItems() {
     const term = searchTerm.trim().toLowerCase();
     let items = MENU_ITEMS.filter((item) => {
-      const matchesCategory = activeCategory === "all" || item.category === activeCategory;
+      const matchesCategory =
+        activeCategory === "all" ||
+        (activeCategory === "favorites" ? isFavorite(item.id) : item.category === activeCategory);
       const matchesType = activeType === "all" || item.type === activeType;
       const matchesSearch = !term || item.name.toLowerCase().includes(term) ||
-        item.description.toLowerCase().includes(term);
+        item.description.toLowerCase().includes(term) ||
+        categoryLabel(item.category).toLowerCase().includes(term);
       return matchesCategory && matchesType && matchesSearch;
     });
 
@@ -274,7 +393,9 @@
             onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
           >
         </div>
-          
+          <button type="button" class="fav-btn ${isFavorite(item.id) ? "is-fav" : ""}" data-action="fav" data-id="${item.id}" aria-label="${isFavorite(item.id) ? "Remove from favorites" : "Add to favorites"}">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="${isFavorite(item.id) ? "currentColor" : "none"}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
           <span class="food-mark ${vegClass}" aria-label="${vegLabel}" title="${vegLabel}"></span>
           ${actionHtml}
         </div>
@@ -286,8 +407,10 @@
     const grid = document.getElementById("menuGrid");
     const items = getFilteredItems();
 
-    const catLabel = (CATEGORIES.find((c) => c.id === activeCategory) || {}).label || "All Dishes";
-    document.getElementById("menuHeading").textContent = activeCategory === "all" ? "All Dishes" : catLabel;
+    let heading = "All Dishes";
+    if (activeCategory === "favorites") heading = "Favorites";
+    else if (activeCategory !== "all") heading = categoryLabel(activeCategory) || "All Dishes";
+    document.getElementById("menuHeading").textContent = heading;
     document.getElementById("dishesCount").textContent = `${items.length} ${items.length === 1 ? "dish" : "dishes"}`;
 
     if (items.length === 0) {
@@ -295,7 +418,7 @@
         <div class="empty-state">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <strong>No dishes found</strong>
-          <p>Try a different search, category, or filter.</p>
+          <p>${activeCategory === "favorites" ? "Tap the heart on a dish to save it here." : "Try a different search, category, or filter."}</p>
         </div>`;
       return;
     }
@@ -320,7 +443,48 @@
       });
     });
 
+    grid.querySelectorAll("[data-action='fav']").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFavorite(btn.dataset.id);
+      });
+    });
+
     grid.querySelectorAll(".food-card").forEach((card) => {
+      card.addEventListener("click", () => openDetail(card.dataset.openId));
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     4b. RECENTLY VIEWED — last few dishes opened in the detail sheet
+     -------------------------------------------------------------------- */
+  function renderRecentlyViewed() {
+    const section = document.getElementById("recentlyViewedSection");
+    const track = document.getElementById("recentlyViewedTrack");
+    if (!section || !track) return;
+
+    const items = recentlyViewed.map(findItem).filter(Boolean);
+    if (items.length === 0) {
+      section.style.display = "none";
+      return;
+    }
+
+    section.style.display = "block";
+    track.innerHTML = items.map((item) => `
+      <button type="button" class="recently-viewed-card" data-open-id="${item.id}">
+        <div class="recently-viewed-card__img">
+          <img
+            src="${foodImagePath(item)}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <p class="recently-viewed-card__name">${escapeHtml(item.name)}</p>
+      </button>
+    `).join("");
+
+    track.querySelectorAll(".recently-viewed-card").forEach((card) => {
       card.addEventListener("click", () => openDetail(card.dataset.openId));
     });
   }
@@ -540,6 +704,7 @@ function renderBannerSlides() {
     detailQty = 1;
     renderDetail();
     openSheet(detailBackdrop, detailSheet);
+    addRecentlyViewed(activeDetailItem.id);
   }
 
   function renderDetail() {
@@ -555,7 +720,11 @@ function renderBannerSlides() {
         style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"
         onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
       >
+      <button type="button" class="fav-btn ${isFavorite(item.id) ? "is-fav" : ""}" data-action="fav" data-id="${item.id}" aria-label="${isFavorite(item.id) ? "Remove from favorites" : "Add to favorites"}">
+        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="${isFavorite(item.id) ? "currentColor" : "none"}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
     `;
+    document.getElementById("detailMedia").querySelector("[data-action='fav']").addEventListener("click", () => toggleFavorite(item.id));
     document.getElementById("detailVegMark").className = `food-mark ${vegClass}`;
     document.getElementById("detailVegLabel").textContent = vegLabel;
     document.getElementById("detailName").textContent = item.name;
@@ -669,6 +838,39 @@ function renderBannerSlides() {
   });
 
   /* --------------------------------------------------------------------
+     10b. CLEAR CART — custom confirmation sheet, no browser alert()
+     -------------------------------------------------------------------- */
+  const clearCartBackdrop = document.getElementById("clearCartBackdrop");
+  const clearCartSheet = document.getElementById("clearCartSheet");
+
+  function openClearCartConfirm() {
+    if (cartTotalCount() === 0) {
+      showToast("Your cart is already empty");
+      return;
+    }
+    openSheet(clearCartBackdrop, clearCartSheet);
+  }
+
+  const clearCartBtnEl = document.getElementById("clearCartBtn");
+  if (clearCartBtnEl) clearCartBtnEl.addEventListener("click", openClearCartConfirm);
+
+  const clearCartCancelBtn = document.getElementById("clearCartCancelBtn");
+  if (clearCartCancelBtn) {
+    clearCartCancelBtn.addEventListener("click", () => closeSheet(clearCartBackdrop, clearCartSheet));
+  }
+
+  const clearCartConfirmBtn = document.getElementById("clearCartConfirmBtn");
+  if (clearCartConfirmBtn) {
+    clearCartConfirmBtn.addEventListener("click", () => {
+      cart = {};
+      saveCart();
+      renderAll();
+      closeSheet(clearCartBackdrop, clearCartSheet);
+      showToast("Cart cleared");
+    });
+  }
+
+  /* --------------------------------------------------------------------
      11. CHECKOUT SHEET (demo only — no real backend/order system)
      -------------------------------------------------------------------- */
   const checkoutBackdrop = document.getElementById("checkoutBackdrop");
@@ -688,6 +890,10 @@ function renderBannerSlides() {
   }
 
   document.getElementById("placeOrderBtn").addEventListener("click", () => {
+    if (cartTotalCount() === 0) {
+      showToast("Your cart is empty");
+      return;
+    }
     const name = document.getElementById("customerName").value.trim();
     const notes = document.getElementById("specialInstructions").value.trim();
     const orderId = "ORD" + Math.floor(1000 + Math.random() * 9000);
@@ -733,6 +939,7 @@ function renderBannerSlides() {
     backdrop.classList.remove("is-open");
     sheet.classList.remove("is-open");
     if (sheet === cartSheet) cartSheetOpen = false;
+    if (sheet.id === "settingsSheet") settingsSheetOpen = false;
     const anyOpen = document.querySelectorAll(".sheet.is-open").length > 0;
     if (!anyOpen) document.body.style.overflow = "";
   }
@@ -763,6 +970,108 @@ function renderBannerSlides() {
   });
 
   /* --------------------------------------------------------------------
+     13b. DARK MODE — CSS-variable based, persisted, applied on load
+     -------------------------------------------------------------------- */
+  function loadTheme() {
+    try {
+      return localStorage.getItem(THEME_KEY) || "light";
+    } catch (e) {
+      console.warn("Could not read theme from localStorage:", e);
+      return "light";
+    }
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+    const toggle = document.getElementById("darkModeToggle");
+    if (toggle) toggle.setAttribute("aria-checked", theme === "dark" ? "true" : "false");
+  }
+
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {
+      console.warn("Could not save theme to localStorage:", e);
+    }
+  }
+
+  let currentTheme = loadTheme();
+  applyTheme(currentTheme);
+
+  const darkModeToggleEl = document.getElementById("darkModeToggle");
+  if (darkModeToggleEl) {
+    darkModeToggleEl.addEventListener("click", () => {
+      currentTheme = currentTheme === "dark" ? "light" : "dark";
+      applyTheme(currentTheme);
+      saveTheme(currentTheme);
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     13c. SETTINGS SHEET
+     -------------------------------------------------------------------- */
+  const settingsBackdrop = document.getElementById("settingsBackdrop");
+  const settingsSheet = document.getElementById("settingsSheet");
+  let settingsSheetOpen = false;
+
+  function renderSettingsCounts() {
+    const el = document.getElementById("settingsFavoritesCount");
+    if (!el) return;
+    const count = favoritesCount();
+    el.textContent = `${count} saved ${count === 1 ? "dish" : "dishes"}`;
+  }
+
+  const settingsBtnEl = document.getElementById("settingsBtn");
+  if (settingsBtnEl && settingsBackdrop && settingsSheet) {
+    settingsBtnEl.addEventListener("click", () => {
+      settingsSheetOpen = true;
+      renderSettingsCounts();
+      openSheet(settingsBackdrop, settingsSheet);
+    });
+  }
+
+  const settingsFavoritesBtn = document.getElementById("settingsFavoritesBtn");
+  if (settingsFavoritesBtn) {
+    settingsFavoritesBtn.addEventListener("click", () => {
+      activeCategory = "favorites";
+      renderCategories();
+      renderGrid();
+      closeSheet(settingsBackdrop, settingsSheet);
+    });
+  }
+
+  const settingsClearCartBtn = document.getElementById("settingsClearCartBtn");
+  if (settingsClearCartBtn) {
+    settingsClearCartBtn.addEventListener("click", () => {
+      closeSheet(settingsBackdrop, settingsSheet);
+      setTimeout(openClearCartConfirm, 260);
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     13d. SHARE MENU — Web Share API with a clipboard fallback
+     -------------------------------------------------------------------- */
+  function shareMenu() {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: document.title, url }).catch(() => {
+        // user cancelled the share sheet — not an error, nothing to do
+      });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => showToast("Menu link copied"))
+        .catch(() => showToast("Couldn't copy the link"));
+    } else {
+      showToast("Couldn't copy the link");
+    }
+  }
+
+  const settingsShareBtn = document.getElementById("settingsShareBtn");
+  if (settingsShareBtn) settingsShareBtn.addEventListener("click", shareMenu);
+
+  /* --------------------------------------------------------------------
      14. TOAST
      -------------------------------------------------------------------- */
   let toastTimer = null;
@@ -789,38 +1098,44 @@ function renderBannerSlides() {
   }
 
   /* --------------------------------------------------------------------
-     16. INIT
+     16. INIT — each step is wrapped so one failure can't cascade and
+         leave the splash screen stuck or the rest of the page unusable.
      -------------------------------------------------------------------- */
-  document.getElementById("restaurantName").textContent = RESTAURANT.name;
-  document.getElementById("restaurantSubtitle").textContent = RESTAURANT.subtitle;
-  document.getElementById("checkoutRestaurant").textContent = RESTAURANT.name;
+  safeCall(() => {
+    document.getElementById("restaurantName").textContent = RESTAURANT.name;
+    document.getElementById("restaurantSubtitle").textContent = RESTAURANT.subtitle;
+    document.getElementById("checkoutRestaurant").textContent = RESTAURANT.name;
+    const splashName = document.getElementById("splashRestaurantName");
+    if (splashName) splashName.textContent = RESTAURANT.name;
+  }, "restaurant info");
 
-  renderTableBadge();
-  renderCategories();
-  renderTypeFilter();
-  renderGrid();
-  renderCartBar();
-  renderQrDocs();
-  renderBannerSlides();
-  goToBanner(0, false);
-  restartBannerAutoplay();
+  safeCall(renderTableBadge, "renderTableBadge");
+  safeCall(renderCategories, "renderCategories");
+  safeCall(renderTypeFilter, "renderTypeFilter");
+  safeCall(renderGrid, "renderGrid");
+  safeCall(renderCartBar, "renderCartBar");
+  safeCall(renderRecentlyViewed, "renderRecentlyViewed");
+  safeCall(renderQrDocs, "renderQrDocs");
+  safeCall(() => {
+    renderBannerSlides();
+    goToBanner(0, false);
+    restartBannerAutoplay();
+  }, "banner carousel");
 
+  /* ================= SPLASH SCREEN ================= */
+  safeCall(() => {
+    const splashScreen = document.getElementById("splashScreen");
+    const splashTable = document.getElementById("splashTable");
 
-/* ================= SPLASH SCREEN ================= */
+    if (splashScreen) {
+      if (splashTable) splashTable.textContent = tableDisplayName();
 
-const splashScreen = document.getElementById("splashScreen");
-const splashTable = document.getElementById("splashTable");
-
-if (splashScreen) {
-  splashTable.textContent = tableDisplayName();
-
-  setTimeout(() => {
-    splashScreen.classList.add("hide");
-
-    setTimeout(() => {
-      splashScreen.remove();
-    }, 500);
-  }, 1000);
-}
-
+      setTimeout(() => {
+        splashScreen.classList.add("hide");
+        setTimeout(() => {
+          if (splashScreen.parentNode) splashScreen.remove();
+        }, 500);
+      }, 1000);
+    }
+  }, "splash screen");
 })();
