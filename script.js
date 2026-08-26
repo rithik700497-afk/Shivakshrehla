@@ -23,11 +23,35 @@
   }
 
   // Absolute safety net: no matter what else fails, the splash is gone
-  // within ~3.5s of page load.
-  setTimeout(forceHideSplash, 3500);
+  // within ~6s of page load. Kept above the Banner-1 preload's own 5s
+  // fallback (see below) so it never fires first and cuts that logic off.
+  setTimeout(forceHideSplash, 6000);
 
   window.addEventListener("error", forceHideSplash);
   window.addEventListener("unhandledrejection", forceHideSplash);
+
+  /* --------------------------------------------------------------------
+     0b. BANNER 1 PRELOAD — kicked off immediately, before any other
+         init work below, so it has the maximum possible time to finish
+         before the splash-screen logic (near the end of this file)
+         checks in on it. The splash stays up until this resolves (or
+         5s passes), so the menu is never revealed with a blank/loading
+         first banner.
+     -------------------------------------------------------------------- */
+  const firstBannerUrl = (typeof BANNERS !== "undefined" && BANNERS[0] && BANNERS[0].image) || null;
+  const firstBannerReadyPromise = new Promise((resolve) => {
+    if (!firstBannerUrl) {
+      resolve(); // nothing to preload — don't block the splash over it
+      return;
+    }
+    const preloadImg = new Image();
+    // Resolve on either outcome — a broken/missing banner image must
+    // never trap the user on the splash screen; the load-vs-error
+    // distinction doesn't matter here, only "we now know the outcome".
+    preloadImg.onload = resolve;
+    preloadImg.onerror = resolve;
+    preloadImg.src = firstBannerUrl; // relative path — works as-is on GitHub Pages
+  });
 
   function safeCall(fn, label) {
     try {
@@ -1693,15 +1717,31 @@ function renderBannerSlides() {
     const splashScreen = document.getElementById("splashScreen");
     const splashTable = document.getElementById("splashTable");
 
-    if (splashScreen) {
-      if (splashTable) splashTable.textContent = tableDisplayName();
+    if (!splashScreen) return;
+    if (splashTable) splashTable.textContent = tableDisplayName();
 
+    function hideSplash() {
+      splashScreen.classList.add("hide");
       setTimeout(() => {
-        splashScreen.classList.add("hide");
-        setTimeout(() => {
-          if (splashScreen.parentNode) splashScreen.remove();
-        }, 500);
-      }, 1000);
+        if (splashScreen.parentNode) splashScreen.remove();
+      }, 500);
     }
+
+    // Wait for Banner 1 to actually finish loading — but never longer
+    // than 5s, so a slow network or a broken image path can't strand
+    // the user on the splash screen.
+    let settled = false;
+    const bannerFallback = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      hideSplash();
+    }, 5000);
+
+    firstBannerReadyPromise.then(() => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(bannerFallback);
+      hideSplash();
+    });
   }, "splash screen");
 })();
