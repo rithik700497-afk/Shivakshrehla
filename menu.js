@@ -18,9 +18,9 @@
  */
 
 const RESTAURANT = {
-  name: "Shivaksh Restro",
+  name: "Shivaksh Restaurant",
   subtitle: "Fresh • Delicious • Made with Love",
-  initials: "FC"
+  initials: "SR"
 };
 
 // Rotating offer banners shown at the top of the page. No external images

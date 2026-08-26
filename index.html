@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>The Food Corner — Digital Menu</title>
+<title>Shivaksh Restaurant — Digital Menu</title>
 <meta name="description" content="Scan, browse and order — a QR-based digital restaurant menu." />
 <meta name="theme-color" content="#f7f7f7" />
 
@@ -83,6 +83,15 @@
     <button class="filter" data-type="nonveg"><span class="nonveg-dot"></span> Non-Veg</button>
   </div>
 
+  <!-- ============================ BUDGET FILTER ============================ -->
+  <div class="budget-filter" id="budgetFilter">
+    <button class="budget-chip is-active" data-budget="all">Any Price</button>
+    <button class="budget-chip" data-budget="0-100">Under ₹100</button>
+    <button class="budget-chip" data-budget="100-200">₹100–₹200</button>
+    <button class="budget-chip" data-budget="200-300">₹200–₹300</button>
+    <button class="budget-chip" data-budget="300-">₹300+</button>
+  </div>
+
   <!-- ============================ CATEGORIES ============================ -->
   <nav class="categories" id="categories" aria-label="Menu categories"></nav>
 
@@ -111,6 +120,14 @@
 
   <p class="footer-credit">Demo prototype · Static site · No backend</p>
 </div>
+
+<!-- ============================ FLOATING SEARCH BUBBLE ============================ -->
+<!-- Hidden until the original search bar scrolls out of view (script.js).
+     Opens the existing #searchOverlay — no separate search system. -->
+<button type="button" class="floating-search-btn" id="floatingSearchBtn" aria-label="Search the menu">
+  <span class="floating-search-btn__icon" aria-hidden="true">🔍</span>
+</button>
+<div class="floating-search-tip" id="floatingSearchTip">No matches</div>
 
 <!-- ============================ FLOATING CART BAR ============================ -->
 <button class="cart-bar" id="cartBar" aria-label="View cart">
@@ -148,12 +165,19 @@
   <div class="sheet__scroll">
     <div class="detail-media" id="detailMedia"></div>
     <div class="detail-body">
-      <div style="display:flex;align-items:center;gap:7px;">
-        <span class="food-mark" id="detailVegMark" style="position:static;" aria-hidden="true"></span>
-        <span class="food-type" id="detailVegLabel" style="margin:0;">Veg</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:7px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span class="food-mark" id="detailVegMark" style="position:static;" aria-hidden="true"></span>
+          <span class="food-type" id="detailVegLabel" style="margin:0;">Veg</span>
+        </div>
+        <button type="button" class="icon-btn icon-btn--sm" id="detailShareBtn" aria-label="Share this dish">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
       </div>
       <h2 class="detail-name" id="detailName">Dish name</h2>
       <p class="detail-desc" id="detailDesc">Description</p>
+      <div id="detailBadges"></div>
+      <div id="detailMeta"></div>
 
       <div class="detail-row">
         <span class="detail-price" id="detailPrice">₹0</span>
@@ -170,6 +194,12 @@
     </div>
   </div>
 </div>
+<div class="image-preview-overlay" id="imagePreviewOverlay">
+  <button type="button" class="image-preview-overlay__close" id="imagePreviewClose" aria-label="Close preview">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <img id="imagePreviewImg" alt="">
+</div>
 
 <!-- ============================ CART SHEET ============================ -->
 <div class="sheet-backdrop" id="cartBackdrop"></div>
@@ -181,6 +211,10 @@
   <div class="sheet__scroll">
     <h2 class="sheet-title">Your Cart</h2>
     <div class="cart-list" id="cartList"></div>
+    <div class="cart-recommendations" id="cartRecommendations" style="display:none;">
+      <p class="menu-small" style="padding:0 0 8px;">You may also like</p>
+      <div class="cart-recommendations__track" id="cartRecommendationsTrack"></div>
+    </div>
     <div class="cart-summary" id="cartSummary">
       <div class="summary-line"><span>Subtotal</span><span id="cartSubtotal">₹0</span></div>
       <div class="summary-line summary-line--total"><span>Total</span><span class="price" id="cartTotal">₹0</span></div>
@@ -219,7 +253,7 @@
       <div class="checkout-meta">
         <div class="checkout-meta__item">
           <p class="checkout-meta__label">Restaurant</p>
-          <p class="checkout-meta__value" id="checkoutRestaurant">The Food Corner</p>
+          <p class="checkout-meta__value" id="checkoutRestaurant">Shivaksh Restaurant</p>
         </div>
         <div class="checkout-meta__item">
           <p class="checkout-meta__label">Table</p>
@@ -318,7 +352,7 @@
 
       <div class="settings-about">
         <p class="settings-row__label">About</p>
-        <p class="settings-row__desc">The Food Corner — static QR digital menu prototype. No backend, no payments, no data leaves your device except your cart in local storage.</p>
+        <p class="settings-row__desc">Shivaksh Restaurant — a QR digital menu. No backend, no payments, no data leaves your device except your cart in local storage.</p>
       </div>
     </div>
   </div>

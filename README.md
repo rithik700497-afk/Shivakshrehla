@@ -1,4 +1,4 @@
-# The Food Corner — QR Digital Menu (Static Prototype)
+# Shivaksh Restaurant — QR Digital Menu (Static Prototype)
 
 A fully static, mobile-first restaurant digital menu. Each table gets its own
 link (`?table=1`, `?table=2`, ...) that a QR code points to. No backend, no

@@ -77,11 +77,22 @@
   let activeCategory = "all";
   let activeType = "all"; // all | veg | nonveg
   let activeSort = "default"; // default | low | high | name
+  let activeBudget = "all"; // all | "0-100" | "100-200" | "200-300" | "300-"
   let searchTerm = "";
   let cart = loadCart(); // { [itemId]: qty }
   let favorites = loadFavorites(); // { [itemId]: true }
   let recentlyViewed = loadRecentlyViewed(); // [itemId, ...] most recent first
   let activeDetailItem = null;
+
+  // Floating search bubble — see initFloatingSearch() / updateFloatingSearchVisibility()
+  let floatingSearchBtn = null;
+  let floatingSearchTip = null;
+  let originalSearchBarVisible = true;
+
+  function updateFloatingSearchVisibility() {
+    if (!floatingSearchBtn) return;
+    floatingSearchBtn.classList.toggle("is-visible", !originalSearchBarVisible);
+  }
 
   function loadFavorites() {
     try {
@@ -334,9 +345,34 @@
     renderGrid();
   });
 
+  function renderBudgetFilter() {
+    document.querySelectorAll(".budget-chip").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.budget === activeBudget);
+    });
+  }
+
+  const budgetFilterEl = document.getElementById("budgetFilter");
+  if (budgetFilterEl) {
+    budgetFilterEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".budget-chip");
+      if (!btn) return;
+      activeBudget = btn.dataset.budget;
+      renderBudgetFilter();
+      renderGrid();
+    });
+  }
+
   function categoryLabel(categoryId) {
     const match = CATEGORIES.find((c) => c.id === categoryId);
     return match ? match.label : "";
+  }
+
+  function matchesBudget(item) {
+    if (activeBudget === "all") return true;
+    const [minStr, maxStr] = activeBudget.split("-");
+    const min = Number(minStr);
+    const max = maxStr === "" || maxStr === undefined ? Infinity : Number(maxStr);
+    return item.price >= min && item.price <= max;
   }
 
   function getFilteredItems() {
@@ -349,7 +385,7 @@
       const matchesSearch = !term || item.name.toLowerCase().includes(term) ||
         item.description.toLowerCase().includes(term) ||
         categoryLabel(item.category).toLowerCase().includes(term);
-      return matchesCategory && matchesType && matchesSearch;
+      return matchesCategory && matchesType && matchesSearch && matchesBudget(item);
     });
 
     if (activeSort === "low") {
@@ -383,21 +419,50 @@
       actionHtml = `<button class="add-btn" data-action="add" data-id="${item.id}" aria-label="Add ${escapeHtml(item.name)}">+</button>`;
     }
 
+    // Optional premium fields — every one is undefined-safe so items
+    // without them render exactly as before.
+    const badges = [];
+    if (item.popular) badges.push(`<span class="food-badge food-badge--popular">Popular</span>`);
+    if (item.trending) badges.push(`<span class="food-badge food-badge--trending">Trending</span>`);
+    if (item.special) badges.push(`<span class="food-badge food-badge--special">Special</span>`);
+    if (item.new) badges.push(`<span class="food-badge food-badge--new">New</span>`);
+    const badgesHtml = badges.length ? `<div class="food-badges">${badges.join("")}</div>` : "";
+
+    const metaBits = [];
+    if (item.prepTime) metaBits.push(`<span class="food-meta__prep">⏱ ${escapeHtml(item.prepTime)}</span>`);
+    if (item.spiceLevel) metaBits.push(`<span class="food-meta__spice">${"🌶".repeat(Math.min(item.spiceLevel, 3))}</span>`);
+    const metaHtml = metaBits.length ? `<div class="food-meta">${metaBits.join("")}</div>` : "";
+
+    const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+    const discountPct = hasDiscount ? Math.round((1 - item.price / item.originalPrice) * 100) : 0;
+    const priceHtml = hasDiscount
+      ? `<div class="food-price-row">
+          <p class="food-price">₹${item.price}</p>
+          <span class="food-price--original">₹${item.originalPrice}</span>
+          <span class="discount-badge">${discountPct}% OFF</span>
+        </div>`
+      : `<p class="food-price">₹${item.price}</p>`;
+    const imageDiscountBadge = hasDiscount ? `<span class="image-discount-badge">${discountPct}% OFF</span>` : "";
+
     return `
       <article class="food-card" data-open-id="${item.id}">
         <div class="food-details">
+          ${badgesHtml}
           <h3 class="food-name">${escapeHtml(item.name)}</h3>
           <p class="food-type">${escapeHtml(item.description)}</p>
-          <p class="food-price">₹${item.price}</p>
+          ${metaHtml}
+          ${priceHtml}
           <span class="${item.available ? "available" : "unavailable"}">${item.available ? "● Available" : "● Out of Stock"}</span>
         </div>
         <div class="food-image-box">
-          <div class="food-image ${!item.available ? "is-unavailable" : ""}">
+          <div class="food-image is-loading ${!item.available ? "is-unavailable" : ""}">
+          ${imageDiscountBadge}
           <img
             src="${foodImage}"
             alt="${escapeHtml(item.name)}"
             loading="lazy"
-            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+            onload="this.classList.add('is-loaded'); this.parentElement.classList.remove('is-loading');"
+            onerror="this.onerror=null; this.parentElement.classList.remove('is-loading'); window.__foodImageFallback(this, '${item.icon || "bowl"}');"
           >
         </div>
           <button type="button" class="fav-btn ${isFavorite(item.id) ? "is-fav" : ""}" data-action="fav" data-id="${item.id}" aria-label="${isFavorite(item.id) ? "Remove from favorites" : "Add to favorites"}">
@@ -413,6 +478,12 @@
   function renderGrid() {
     const grid = document.getElementById("menuGrid");
     const items = getFilteredItems();
+
+    // Floating search bubble glow — reflects the real filtered count from
+    // getFilteredItems(), never a second search/filter system.
+    const hasNoSearchResults = searchTerm.trim().length > 0 && items.length === 0;
+    if (floatingSearchBtn) floatingSearchBtn.classList.toggle("is-glowing", hasNoSearchResults);
+    if (floatingSearchTip) floatingSearchTip.classList.toggle("is-visible", hasNoSearchResults);
 
     let heading = "All Dishes";
     if (activeCategory === "favorites") heading = "Favorites";
@@ -626,6 +697,47 @@
     const anySheetOpen = document.querySelectorAll(".sheet.is-open").length > 0;
     if (!anySheetOpen) document.body.style.overflow = "";
     syncSearchTrigger();
+    updateFloatingSearchVisibility();
+  }
+
+  /* --------------------------------------------------------------------
+     6b. FLOATING SEARCH BUBBLE — a compact stand-in for the full search
+         bar once it scrolls out of view. It owns no filtering logic of
+         its own: clicking it just opens the existing search overlay
+         above and focuses the existing searchOverlayInput.
+     -------------------------------------------------------------------- */
+  function initFloatingSearch() {
+    floatingSearchBtn = document.getElementById("floatingSearchBtn");
+    floatingSearchTip = document.getElementById("floatingSearchTip");
+    const searchWrapperEl = document.querySelector(".search-wrapper");
+    if (!floatingSearchBtn || !searchWrapperEl) return;
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            originalSearchBarVisible = entry.isIntersecting;
+            updateFloatingSearchVisibility();
+          });
+        },
+        { threshold: 0 }
+      );
+      observer.observe(searchWrapperEl);
+    } else {
+      // Fallback for browsers without IntersectionObserver support.
+      const fallbackCheck = () => {
+        originalSearchBarVisible = searchWrapperEl.getBoundingClientRect().bottom > 0;
+        updateFloatingSearchVisibility();
+      };
+      window.addEventListener("scroll", fallbackCheck, { passive: true });
+      fallbackCheck();
+    }
+
+    floatingSearchBtn.addEventListener("click", () => {
+      floatingSearchBtn.classList.add("is-opening");
+      openSearchOverlay();
+      setTimeout(() => floatingSearchBtn.classList.remove("is-opening"), 320);
+    });
   }
 
   function renderSearchOverlay() {
@@ -817,9 +929,10 @@
   let bannerDrag = null; // { startX, startTranslate, width, moved }
 
 function renderBannerSlides() {
-  bannerTrack.innerHTML = BANNERS.map((banner) => `
+  bannerTrack.innerHTML = BANNERS.map((banner, i) => `
     <div
       class="banner-slide"
+      data-category="${banner.category || ""}"
       style="
         background-image:
           linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)),
@@ -829,13 +942,28 @@ function renderBannerSlides() {
         background-repeat: no-repeat;
       "
     >
+      ${banner.offerText ? `<span class="banner-offer-badge">${escapeHtml(banner.offerText)}</span>` : ""}
       <div class="banner-content">
         <p class="banner-eyebrow">${escapeHtml(banner.eyebrow)}</p>
         <h1>${escapeHtml(banner.title)}</h1>
         <p>${escapeHtml(banner.subtitle)}</p>
+        ${banner.buttonText ? `<button type="button" class="banner-cta" data-index="${i}">${escapeHtml(banner.buttonText)}</button>` : ""}
       </div>
     </div>
   `).join("");
+
+  bannerTrack.querySelectorAll(".banner-cta").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const banner = BANNERS[Number(btn.dataset.index)];
+      if (banner && banner.category) {
+        activeCategory = banner.category;
+        renderCategories();
+        renderGrid();
+        document.getElementById("menuGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
 
   bannerDots.innerHTML = BANNERS.map((_, i) => `
     <button
@@ -969,10 +1097,11 @@ function renderBannerSlides() {
     if (!item) return;
     const vegClass = item.type === "veg" ? "" : "nonveg";
     const vegLabel = item.type === "veg" ? "Veg" : "Non-Veg";
+    const imgSrc = foodImagePath(item);
 
     document.getElementById("detailMedia").innerHTML = `
       <img
-        src="${foodImagePath(item)}"
+        src="${imgSrc}"
         alt="${escapeHtml(item.name)}"
         style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"
         onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
@@ -981,17 +1110,54 @@ function renderBannerSlides() {
         <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="${isFavorite(item.id) ? "currentColor" : "none"}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
       </button>
     `;
-    document.getElementById("detailMedia").querySelector("[data-action='fav']").addEventListener("click", () => toggleFavorite(item.id));
+    document.getElementById("detailMedia").querySelector("[data-action='fav']").addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleFavorite(item.id);
+    });
+    document.getElementById("detailMedia").addEventListener("click", (e) => {
+      if (e.target.closest("[data-action='fav']")) return;
+      openImagePreview(imgSrc, item.name);
+    });
+
     document.getElementById("detailVegMark").className = `food-mark ${vegClass}`;
     document.getElementById("detailVegLabel").textContent = vegLabel;
     document.getElementById("detailName").textContent = item.name;
     document.getElementById("detailDesc").textContent = item.description;
-    document.getElementById("detailPrice").textContent = `₹${item.price}`;
     document.getElementById("detailQty").textContent = detailQty;
+
+    // Optional premium fields — badges, prep time, spice level, discount
+    const badges = [];
+    if (item.popular) badges.push(`<span class="food-badge food-badge--popular">Popular</span>`);
+    if (item.trending) badges.push(`<span class="food-badge food-badge--trending">Trending</span>`);
+    if (item.special) badges.push(`<span class="food-badge food-badge--special">Special</span>`);
+    if (item.new) badges.push(`<span class="food-badge food-badge--new">New</span>`);
+    document.getElementById("detailBadges").innerHTML = badges.length ? `<div class="food-badges">${badges.join("")}</div>` : "";
+
+    const metaBits = [];
+    if (item.prepTime) metaBits.push(`<span class="food-meta__prep">⏱ ${escapeHtml(item.prepTime)}</span>`);
+    if (item.spiceLevel) metaBits.push(`<span class="food-meta__spice">${"🌶".repeat(Math.min(item.spiceLevel, 3))}</span>`);
+    if (Array.isArray(item.ingredients) && item.ingredients.length) {
+      metaBits.push(`<span>Ingredients: ${escapeHtml(item.ingredients.join(", "))}</span>`);
+    }
+    if (Array.isArray(item.allergens) && item.allergens.length) {
+      metaBits.push(`<span>Allergens: ${escapeHtml(item.allergens.join(", "))}</span>`);
+    }
+    document.getElementById("detailMeta").innerHTML = metaBits.length
+      ? `<div class="food-meta" style="flex-wrap:wrap;">${metaBits.join("")}</div>` : "";
+
+    const hasDiscount = item.originalPrice && item.originalPrice > item.price;
 
     const availNote = document.getElementById("detailUnavailableNote");
     const addBtn = document.getElementById("detailAddBtn");
     const qtyBox = document.getElementById("detailQtyBox");
+    const priceEl = document.getElementById("detailPrice");
+
+    if (hasDiscount) {
+      const discountPct = Math.round((1 - item.price / item.originalPrice) * 100);
+      priceEl.innerHTML = `₹${item.price} <span class="food-price--original" style="margin-left:6px;">₹${item.originalPrice}</span> <span class="discount-badge">${discountPct}% OFF</span>`;
+    } else {
+      priceEl.textContent = `₹${item.price}`;
+    }
 
     if (item.available) {
       availNote.style.display = "none";
@@ -1004,6 +1170,59 @@ function renderBannerSlides() {
       addBtn.textContent = "Out of Stock";
       qtyBox.style.display = "none";
     }
+  }
+
+  /* --------------------------------------------------------------------
+     4c. FULLSCREEN IMAGE PREVIEW
+     -------------------------------------------------------------------- */
+  const imagePreviewOverlay = document.getElementById("imagePreviewOverlay");
+  const imagePreviewImg = document.getElementById("imagePreviewImg");
+  const imagePreviewClose = document.getElementById("imagePreviewClose");
+
+  function openImagePreview(src, alt) {
+    if (!imagePreviewOverlay) return;
+    imagePreviewImg.src = src;
+    imagePreviewImg.alt = alt || "";
+    imagePreviewOverlay.classList.add("is-open");
+  }
+
+  function closeImagePreview() {
+    if (imagePreviewOverlay) imagePreviewOverlay.classList.remove("is-open");
+  }
+
+  if (imagePreviewClose) imagePreviewClose.addEventListener("click", closeImagePreview);
+  if (imagePreviewOverlay) {
+    imagePreviewOverlay.addEventListener("click", (e) => {
+      if (e.target === imagePreviewOverlay) closeImagePreview();
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     4d. SHARE DISH — Web Share API with clipboard fallback; also
+         supports opening a shared link directly via ?dish=ID
+     -------------------------------------------------------------------- */
+  function shareDish(item) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("dish", item.id);
+    const shareData = { title: item.name, text: item.description, url: url.toString() };
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {});
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url.toString())
+        .then(() => showToast("Link copied"))
+        .catch(() => showToast("Couldn't copy the link"));
+    } else {
+      showToast("Couldn't copy the link");
+    }
+  }
+
+  const detailShareBtn = document.getElementById("detailShareBtn");
+  if (detailShareBtn) {
+    detailShareBtn.addEventListener("click", () => {
+      if (activeDetailItem) shareDish(activeDetailItem);
+    });
   }
 
   document.getElementById("detailQtyInc").addEventListener("click", () => {
@@ -1040,6 +1259,8 @@ function renderBannerSlides() {
           <p>Add a few dishes to get started.</p>
         </div>`;
       summaryEl.style.display = "none";
+      const recWrap = document.getElementById("cartRecommendations");
+      if (recWrap) recWrap.style.display = "none";
       return;
     }
 
@@ -1080,6 +1301,52 @@ function renderBannerSlides() {
     summaryEl.style.display = "block";
     document.getElementById("cartSubtotal").textContent = `₹${cartTotalPrice()}`;
     document.getElementById("cartTotal").textContent = `₹${cartTotalPrice()}`;
+    renderCartRecommendations();
+  }
+
+  // "You may also like" — a few available, not-already-in-cart dishes,
+  // preferring the same categories as what's already in the cart. This is
+  // a generic recommender since MENU_ITEMS doesn't define explicit
+  // recommendedWith relationships; add that field to items to make specific
+  // pairings (e.g. Biryani → Raita) take over here later.
+  function renderCartRecommendations() {
+    const wrap = document.getElementById("cartRecommendations");
+    const track = document.getElementById("cartRecommendationsTrack");
+    if (!wrap || !track) return;
+
+    const cartCategories = new Set(cartEntries().map((e) => e.item.category));
+    const candidates = MENU_ITEMS.filter((item) => item.available && !cart[item.id]);
+    const sameCategory = candidates.filter((item) => cartCategories.has(item.category));
+    const rest = candidates.filter((item) => !cartCategories.has(item.category));
+    const picks = sameCategory.concat(rest).slice(0, 4);
+
+    if (picks.length === 0) {
+      wrap.style.display = "none";
+      return;
+    }
+
+    wrap.style.display = "block";
+    track.innerHTML = picks.map((item) => `
+      <div class="cart-rec-card">
+        <div class="cart-rec-card__img">
+          <img
+            src="${foodImagePath(item)}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <p class="cart-rec-card__name">${escapeHtml(item.name)}</p>
+        <p class="cart-rec-card__price">₹${item.price}</p>
+        <button type="button" class="cart-rec-card__add" data-action="add-rec" data-id="${item.id}">+ Add</button>
+      </div>
+    `).join("");
+
+    track.querySelectorAll("[data-action='add-rec']").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        addToCart(btn.dataset.id);
+      });
+    });
   }
 
   document.getElementById("cartBar").addEventListener("click", () => {
@@ -1223,6 +1490,7 @@ function renderBannerSlides() {
         closeSheet(backdrop, sheet);
       });
       sortMenu.classList.remove("show");
+      closeImagePreview();
     }
   });
 
@@ -1359,8 +1627,10 @@ function renderBannerSlides() {
   safeCall(renderTableBadge, "renderTableBadge");
   safeCall(buildSearchIndex, "buildSearchIndex");
   safeCall(syncSearchTrigger, "syncSearchTrigger");
+  safeCall(initFloatingSearch, "floating search bubble");
   safeCall(renderCategories, "renderCategories");
   safeCall(renderTypeFilter, "renderTypeFilter");
+  safeCall(renderBudgetFilter, "renderBudgetFilter");
   safeCall(renderGrid, "renderGrid");
   safeCall(renderCartBar, "renderCartBar");
   safeCall(renderRecentlyViewed, "renderRecentlyViewed");
@@ -1369,6 +1639,24 @@ function renderBannerSlides() {
     goToBanner(0, false);
     restartBannerAutoplay();
   }, "banner carousel");
+
+  // Sticky header gets a blur/shadow once the page has scrolled a little.
+  safeCall(() => {
+    const headerEl = document.querySelector(".header");
+    if (!headerEl) return;
+    const onScroll = () => headerEl.classList.toggle("is-stuck", window.scrollY > 8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }, "sticky header");
+
+  // Shareable dish URL: ?dish=123 (table param, if present, is untouched)
+  safeCall(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dishId = params.get("dish");
+    if (dishId && findItem(dishId)) {
+      setTimeout(() => openDetail(dishId), 1200);
+    }
+  }, "deep-linked dish");
 
   /* ================= SPLASH SCREEN ================= */
   safeCall(() => {
@@ -1383,7 +1671,7 @@ function renderBannerSlides() {
         setTimeout(() => {
           if (splashScreen.parentNode) splashScreen.remove();
         }, 500);
-      }, 2000);
+      }, 1000);
     }
   }, "splash screen");
 })();
