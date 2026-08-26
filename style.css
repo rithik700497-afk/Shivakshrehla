@@ -286,8 +286,8 @@ input, textarea { font-family: inherit; }
   height: 46px;
   border: none;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--accent);
+  background: var(--accent);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -299,7 +299,7 @@ input, textarea { font-family: inherit; }
   opacity: 0;
   transform: translateY(-16px) scale(0.6);
   pointer-events: none;
-  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease), box-shadow 0.3s ease;
+  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease), box-shadow 0.3s ease, background-color 0.2s ease;
 }
 
 .floating-search-btn.is-visible {
@@ -308,7 +308,7 @@ input, textarea { font-family: inherit; }
   pointer-events: auto;
 }
 
-.floating-search-btn:hover { box-shadow: var(--shadow-md); }
+.floating-search-btn:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
 .floating-search-btn:active,
 .floating-search-btn.is-opening {
   transform: translateY(0) scale(1.1);
