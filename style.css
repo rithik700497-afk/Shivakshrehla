@@ -726,10 +726,11 @@ input, textarea { font-family: inherit; }
   align-items: center;
   justify-content: center;
   transition: transform 0.15s var(--ease);
+  animation: actionPop 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .add-btn:hover { transform: scale(1.06); }
-.add-btn:active { transform: scale(0.85); }
+.add-btn:active { transform: scale(0.9); }
 
 .add-btn:disabled {
   color: var(--ink-faint);
@@ -749,6 +750,13 @@ input, textarea { font-family: inherit; }
   padding: 4px;
   box-shadow: var(--shadow-md);
   z-index: 4;
+  animation: actionPop 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes actionPop {
+  0% { transform: scale(0.55); opacity: 0; }
+  65% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .quantity button {
@@ -761,9 +769,23 @@ input, textarea { font-family: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s var(--ease), opacity 0.15s var(--ease);
 }
 
-.quantity span { min-width: 18px; text-align: center; font-weight: 700; font-size: 13px; }
+.quantity button:active { transform: scale(0.82); }
+
+.quantity span {
+  min-width: 18px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  animation: numberBump 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes numberBump {
+  0% { transform: scale(0.6); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
 
 .empty-state {
   grid-column: 1 / -1;
@@ -1839,7 +1861,7 @@ input, textarea { font-family: inherit; }
 }
 
 .search-qty button { width: 26px; height: 26px; border: none; background: transparent; color: #fff; font-size: 15px; display: flex; align-items: center; justify-content: center; }
-.search-qty span { min-width: 16px; text-align: center; font-weight: 700; font-size: 12px; }
+.search-qty span { min-width: 16px; text-align: center; font-weight: 700; font-size: 12px; transition: transform 0.15s var(--ease); }
 
 /* ==========================================================================
    Small polish animations
@@ -1854,15 +1876,13 @@ input, textarea { font-family: inherit; }
 }
 
 .cart-count-badge { transition: transform 0.2s var(--ease); }
-.cart-count-badge.pulse { animation: badge-pulse 0.35s var(--ease); }
+.cart-count-badge.pulse { animation: badge-pulse 0.22s var(--ease); }
 
 @keyframes badge-pulse {
   0% { transform: scale(1); }
-  40% { transform: scale(1.35); }
+  50% { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
-
-.quantity span, .search-qty span { transition: transform 0.15s var(--ease); }
 
 @media (max-width: 700px) {
   .search-overlay__body { padding-left: 15px; padding-right: 15px; }

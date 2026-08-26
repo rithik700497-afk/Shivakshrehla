@@ -1,1890 +1,1707 @@
-/* ==========================================================================
-   The Food Corner — Digital Menu
-   Design tokens
-   ========================================================================== */
-:root {
-  --bg: #f7f7f7;
-  --surface: #ffffff;
-  --ink: #222222;
-  --ink-soft: #777777;
-  --ink-faint: #a3a3a3;
-  --border: #eeeeee;
-  --border-strong: #dddddd;
-  --accent: #e63232;
-  --accent-dark: #b8241f;
-  --accent-hover: #d92d2d;
-  --accent-soft: #fff1f1;
-  --accent-ink: #ffffff;
-  --surface-elevated: #ffffff;
-  --veg: #159447;
-  --veg-text: #168743;
-  --nonveg: #e63232;
-  --price: #a95b19;
-  --success: #159447;
-  --warning: #c8860d;
-  --danger: #d92d2d;
-  --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.2);
-  --radius-s: 12px;
-  --radius-m: 18px;
-  --radius-l: 25px;
-  --font: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-}
+/**
+ * script.js
+ * Vanilla JS. No build step, no dependencies beyond the optional Google
+ * Fonts link — every food illustration is inline SVG so the site works
+ * fully offline and needs no image assets on GitHub Pages.
+ */
+(function () {
+  "use strict";
 
-* { box-sizing: border-box; }
-html { -webkit-tap-highlight-color: transparent; }
-
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font);
-  -webkit-font-smoothing: antialiased;
-  line-height: 1.45;
-}
-
-img, svg { display: block; max-width: 100%; }
-button { font-family: inherit; cursor: pointer; }
-input, textarea { font-family: inherit; }
-
-.visually-hidden {
-  position: absolute; width: 1px; height: 1px;
-  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.app {
-  max-width: 720px;
-  margin: 0 auto;
-  min-height: 100vh;
-  background: var(--bg);
-  position: relative;
-  padding-bottom: 130px;
-}
-.made-by {
-  margin: 2px 0 18px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #888;
-  letter-spacing: 0.5px;
-
-  opacity: 0;
-  transform: translateY(10px);
-  animation: madeByEnter 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
-}
-
-.made-by span {
-  color: #e63232;
-  font-weight: 700;
-  text-shadow: 0 0 0 rgba(230, 50, 50, 0);
-  animation: nameGlow 1.8s ease-in-out 1.4s infinite alternate;
-}
-
-@keyframes madeByEnter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+  /* --------------------------------------------------------------------
+     0. ERROR PROTECTION — the splash screen must NEVER stay stuck
+        because of a JS error anywhere else on the page. forceHideSplash
+        is idempotent and safe to call multiple times; a hard-cap timer
+        below guarantees it fires even if init() itself throws.
+     -------------------------------------------------------------------- */
+  function forceHideSplash() {
+    const splashScreen = document.getElementById("splashScreen");
+    if (!splashScreen) return;
+    splashScreen.classList.add("hide");
+    setTimeout(() => {
+      if (splashScreen.parentNode) splashScreen.remove();
+    }, 500);
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes nameGlow {
-  from {
-    text-shadow: 0 0 0 rgba(230, 50, 50, 0);
-  }
-
-  to {
-    text-shadow: 0 0 10px rgba(230, 50, 50, 0.3);
-  }
-}
-
-/* ==========================================================================
-   Header
-   ========================================================================== */
-.header {
-  background: var(--surface);
-  padding: 18px 5%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border);
-  gap: 12px;
-  /* Scrolls away with the page — only the floating search bubble
-     (see "Floating Search Bubble" section below) stays on screen. */
-  position: relative;
-  z-index: 40;
-  transition: box-shadow 0.25s var(--ease), background-color 0.25s var(--ease), padding 0.2s var(--ease);
-}
-
-.header.is-stuck {
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-sm);
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-.header-logo {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  flex-shrink: 0;
-  border-radius: 10px;
-}
-.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-
-.location-icon { font-size: 30px; color: var(--accent); flex-shrink: 0; }
-
-.brand-name {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.15;
-  letter-spacing: -0.2px;
-}
-
-.brand-subtitle {
-  margin: 3px 0 0;
-  font-size: 12.5px;
-  color: var(--ink-soft);
-}
-
-.table-badge {
-  flex-shrink: 0;
-  border: 1px solid var(--accent);
-  background: var(--surface);
-  color: var(--accent);
-  padding: 11px 18px;
-  border-radius: var(--radius-s);
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.table-badge--unset {
-  border-color: var(--border-strong);
-  color: var(--ink-soft);
-}
-
-/* ==========================================================================
-   Search
-   ========================================================================== */
-.search-wrapper { background: var(--surface); padding: 15px 5%; }
-
-.search { width: 100%; position: relative; }
-
-.search input {
-  width: 100%;
-  height: 58px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-m);
-  padding: 0 44px 0 52px;
-  font-size: 15px;
-  color: var(--ink);
-  outline: none;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s var(--ease);
-}
-
-.search input::placeholder { color: var(--ink-faint); }
-.search input:focus { border-color: var(--accent); }
-
-.search-icon {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 20px;
-  color: var(--ink-soft);
-  pointer-events: none;
-}
-
-.search-trigger {
-  width: 100%;
-  height: 58px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  border-radius: var(--radius-m);
-  padding: 0 44px 0 52px;
-  font-size: 15px;
-  color: var(--ink-faint);
-  text-align: left;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.2s var(--ease), transform 0.12s var(--ease);
-  display: flex;
-  align-items: center;
-}
-
-.search-trigger:hover, .search-trigger:focus-visible { border-color: var(--accent); outline: none; }
-.search-trigger:active { transform: scale(0.99); }
-
-.search-trigger__text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
-  width: 100%;
-}
-
-.search-trigger__text.has-term { color: var(--ink); font-weight: 500; }
-
-.search-clear {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  color: var(--ink-faint);
-}
-
-.search-clear:hover { background: var(--accent-soft); color: var(--accent); }
-.search-clear.is-visible { display: flex; }
-
-/* ==========================================================================
-   Floating Search Bubble
-   Appears only once the original .search-wrapper has scrolled out of the
-   viewport (see IntersectionObserver in script.js). It never runs its own
-   filtering — clicking it opens the existing full search overlay and
-   focuses the existing searchOverlayInput.
-   ========================================================================== */
-.floating-search-btn {
-  position: fixed;
-  top: 14px;
-  top: calc(env(safe-area-inset-top, 0px) + 14px);
-  left: 16px;
-  left: max(16px, calc((100vw - 720px) / 2 + 16px));
-  width: 46px;
-  height: 46px;
-  border: none;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  line-height: 1;
-  box-shadow: var(--shadow-sm);
-  z-index: 45;
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(-16px) scale(0.6);
-  pointer-events: none;
-  transition: opacity 0.32s var(--ease), transform 0.32s var(--ease), box-shadow 0.3s ease, background-color 0.2s ease;
-}
-
-.floating-search-btn.is-visible {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-  pointer-events: auto;
-}
-
-.floating-search-btn:hover { background: var(--accent-hover); box-shadow: var(--shadow-md); }
-.floating-search-btn:active,
-.floating-search-btn.is-opening {
-  transform: translateY(0) scale(1.1);
-}
-
-.floating-search-btn__icon {
-  display: inline-flex;
-  transition: transform 0.2s var(--ease);
-}
-
-.floating-search-btn.is-glowing {
-  animation: floatingSearchGlow 2.4s ease-in-out infinite;
-}
-
-.floating-search-btn.is-glowing .floating-search-btn__icon {
-  animation: floatingSearchIconPulse 2.4s ease-in-out infinite;
-}
-
-@keyframes floatingSearchGlow {
-  0%, 100% { box-shadow: var(--shadow-sm), 0 0 0 0 rgba(230, 50, 50, 0); }
-  50% { box-shadow: var(--shadow-sm), 0 0 16px 5px rgba(230, 50, 50, 0.38); }
-}
-
-@keyframes floatingSearchIconPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.16); }
-}
-
-.floating-search-tip {
-  position: fixed;
-  top: 66px;
-  top: calc(env(safe-area-inset-top, 0px) + 66px);
-  left: 16px;
-  left: max(16px, calc((100vw - 720px) / 2 + 16px));
-  background: var(--ink);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-  z-index: 45;
-  opacity: 0;
-  transform: translateY(-6px);
-  pointer-events: none;
-  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
-}
-
-.floating-search-tip.is-visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .floating-search-btn.is-glowing { animation: none; box-shadow: var(--shadow-sm), 0 0 12px 3px rgba(230, 50, 50, 0.3); }
-  .floating-search-btn.is-glowing .floating-search-btn__icon { animation: none; }
-}
-
-/* ==========================================================================
-   Banner carousel
-   ========================================================================== */
-.banner-wrapper { padding: 20px 5% 5px; background: var(--surface); }
-
-.banner-viewport {
-  height: 220px;
-  border-radius: var(--radius-l);
-  overflow: hidden;
-  position: relative;
-  touch-action: pan-y; /* let vertical page scroll through; we handle horizontal swipes */
-  cursor: grab;
-}
-
-.banner-viewport.is-dragging { cursor: grabbing; }
-
-.banner-track {
-  display: flex;
-  height: 100%;
-  width: 100%;
-  will-change: transform;
-}
-
-/* While the user is actively dragging, movement should track the finger
-   1:1 with no easing. Snapping to a slide (drag release, dot tap, autoplay)
-   gets a smooth eased transition — this split is what makes it feel like
-   Zomato/Swiggy's banner rather than a hard cut. */
-.banner-track.is-snapping { transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1); }
-
-.banner-slide {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  position: relative;
-  display: flex;
-  align-items: center;
-  color: #fff;
-  user-select: none;
-
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.banner-slide__pattern { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
-
-.banner-content { padding: 30px; position: relative; z-index: 2; pointer-events: none; }
-
-.banner-eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  opacity: 0.85;
-  margin: 0 0 6px;
-}
-
-.banner-content h1 {
-  font-size: 34px;
-  margin: 0;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.banner-content p {
-  margin: 10px 0 0;
-  font-size: 13.5px;
-  opacity: 0.92;
-  max-width: 320px;
-}
-
-.banner-cta {
-  margin-top: 14px;
-  pointer-events: auto;
-  border: none;
-  background: #fff;
-  color: var(--accent-dark);
-  font-weight: 700;
-  font-size: 12.5px;
-  padding: 10px 18px;
-  border-radius: var(--radius-l);
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.15s var(--ease);
-}
-.banner-cta:hover { transform: translateY(-1px); }
-.banner-cta:active { transform: scale(0.96); }
-
-.banner-offer-badge {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 3;
-  background: var(--accent);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 5px 10px;
-  border-radius: 999px;
-  box-shadow: var(--shadow-sm);
-}
-
-.banner-dots {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 3;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: #fff;
-  opacity: 0.5;
-  transition: opacity 0.2s ease, transform 0.2s ease, width 0.25s ease;
-}
-
-.dot.active { opacity: 1; transform: scale(1.15); width: 18px; border-radius: 4px; }
-
-/* ==========================================================================
-   Filter row (veg / non-veg)
-   ========================================================================== */
-.filter-area {
-  padding: 16px 5%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.filter-area::-webkit-scrollbar { display: none; }
-
-.filter {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 10px 18px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-m);
-  background: var(--surface);
-  font-weight: 500;
-  font-size: 13.5px;
-  color: var(--ink);
-  white-space: nowrap;
-  transition: all 0.15s var(--ease);
-}
-
-.filter.is-active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.veg-dot, .nonveg-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.veg-dot { background: var(--veg); }
-.nonveg-dot { background: var(--nonveg); }
-
-/* ==========================================================================
-   Categories
-   ========================================================================== */
-.categories {
-  display: flex;
-  gap: 12px;
-  padding: 10px 5% 14px;
-  overflow-x: auto;
-  background: var(--surface);
-  scrollbar-width: none;
-  /* Scrolls away naturally with the header and banner — never sticky. */
-  position: relative;
-  border-bottom: 1px solid var(--border);
-}
-
-.categories::-webkit-scrollbar { display: none; }
-
-.chip {
-  flex-shrink: 0;
-  padding: 11px 20px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: var(--radius-l);
-  font-weight: 500;
-  font-size: 13.5px;
-  color: var(--ink);
-  white-space: nowrap;
-  transition: all 0.15s var(--ease);
-}
-
-.chip.is-active {
-  background: var(--surface);
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-/* ==========================================================================
-   Menu title
-   ========================================================================== */
-.menu-title { padding: 18px 5% 6px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-
-.menu-small {
-  color: var(--accent);
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 3px;
-}
-
-.menu-title h2 { margin: 0; font-size: 26px; font-weight: 700; }
-
-.dishes-count { color: var(--ink-soft); font-size: 13px; white-space: nowrap; }
-
-/* ==========================================================================
-   Food grid + card
-   ========================================================================== */
-.food-grid {
-  padding: 12px 5% 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-@media (max-width: 520px) {
-  .food-grid { grid-template-columns: 1fr; }
-}
-
-.food-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-m);
-  padding: 14px;
-  min-height: 150px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  text-align: left;
-  transition: box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
-  animation: card-in 0.35s var(--ease) both;
-}
-
-@keyframes card-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.food-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-
-.food-details { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-
-.food-name {
-  font-size: 15.5px;
-  font-weight: 600;
-  line-height: 1.3;
-  margin: 0 0 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.food-type {
-  font-size: 12px;
-  color: var(--ink-soft);
-  margin: 0 0 8px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.food-price { color: var(--price); font-size: 16px; font-weight: 700; margin: 0 0 6px; }
-
-.available { color: var(--veg-text); font-size: 11px; font-weight: 600; margin-top: auto; }
-.unavailable { color: var(--nonveg); font-size: 11px; font-weight: 600; margin-top: auto; }
-.food-image-box {
-  width: 110px;
-  height: 110px;
-  flex-shrink: 0;
-  position: relative;
-}
-.food-image {
-  width: 100%;
-  height: 100%;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #f5f5f5;
-}
-
-.food-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.food-image svg { width: 100%; height: 100%; }
-
-.food-image.is-unavailable svg { opacity: 0.4; filter: grayscale(0.5); }
-
-/* Veg/non-veg mark on the image */
-.food-mark {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--veg);
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  z-index: 3;
-}
-
-.food-mark::after {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--veg);
-}
-
-.food-mark.nonveg { border-color: var(--nonveg); }
-.food-mark.nonveg::after { background: var(--nonveg); border-radius: 0 50% 0 50%; }
-
-/* Add button overlapping the image */
-.add-btn {
-  position: absolute;
-  right: -5px;
-  bottom: -8px;
-  width: 42px;
-  height: 42px;
-  border: none;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--accent);
-  font-size: 24px;
-  font-weight: 500;
-  box-shadow: var(--shadow-lg);
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s var(--ease);
-  animation: actionPop 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.add-btn:hover { transform: scale(1.06); }
-.add-btn:active { transform: scale(0.85); }
-
-.add-btn:disabled {
-  color: var(--ink-faint);
-  box-shadow: var(--shadow-sm);
-  cursor: not-allowed;
-}
-
-.quantity {
-  position: absolute;
-  right: -5px;
-  bottom: -8px;
-  display: flex;
-  align-items: center;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 20px;
-  padding: 4px;
-  box-shadow: var(--shadow-md);
-  z-index: 4;
-  animation: actionPop 0.38s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes actionPop {
-  0% { transform: scale(0.55); opacity: 0; }
-  65% { transform: scale(1.06); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.quantity button {
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: #fff;
-  font-size: 17px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s var(--ease), opacity 0.15s var(--ease);
-}
-
-.quantity button:active { transform: scale(0.82); }
-
-.quantity span {
-  min-width: 18px;
-  text-align: center;
-  font-weight: 700;
-  font-size: 13px;
-  animation: numberBump 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes numberBump {
-  0% { transform: scale(0.55); opacity: 0.4; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.empty-state {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 50px 20px;
-  color: var(--ink-soft);
-}
-
-.empty-state svg { margin: 0 auto 14px; color: var(--ink-faint); }
-.empty-state strong { display: block; font-size: 17px; color: var(--ink); margin-bottom: 4px; }
-.empty-state p { margin: 0; font-size: 14px; }
-
-/* ==========================================================================
-   Floating cart bar (expands with items, collapses to a compact FAB)
-   ========================================================================== */
-.cart-bar {
-  position: fixed;
-  bottom: -100px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 680px;
-  background: var(--surface);
-  border-radius: var(--radius-m);
-  padding: 12px 18px;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border: none;
-  text-align: left;
-  z-index: 40;
-  transition:
-    bottom 0.35s ease,
-    left 0.45s var(--ease),
-    right 0.45s var(--ease),
-    width 0.45s var(--ease),
-    height 0.45s var(--ease),
-    padding 0.45s ease,
-    border-radius 0.45s ease,
-    transform 0.45s var(--ease),
-    box-shadow 0.35s ease;
-}
-
-.cart-bar.show { bottom: 20px; }
-
-.cart-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-
-.cart-icon {
-  width: 45px;
-  height: 45px;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 21px;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.cart-items { font-weight: 700; font-size: 14px; }
-.cart-total { font-size: 12px; color: var(--ink-soft); }
-.view-cart { color: var(--accent); font-weight: 700; font-size: 13.5px; flex-shrink: 0; }
-
-.cart-count-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 20px;
-  background: #fff;
-  color: var(--accent);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  box-shadow: var(--shadow-sm);
-  z-index: 5;
-}
-
-.cart-bar.compact {
-  left: auto;
-  right: 18px;
-  width: 60px;
-  height: 60px;
-  padding: 0;
-  border-radius: 50%;
-  transform: none;
-  justify-content: center;
-  box-shadow: 0 10px 28px rgba(230, 50, 50, 0.28), 0 4px 12px rgba(0, 0, 0, 0.16);
-}
-
-.cart-bar.compact .cart-left { gap: 0; width: 100%; height: 100%; justify-content: center; }
-.cart-bar.compact .cart-icon { width: 60px; height: 60px; border-radius: 50%; font-size: 24px; }
-.cart-bar.compact .cart-items,
-.cart-bar.compact .cart-total,
-.cart-bar.compact .view-cart { display: none; }
-.cart-bar.compact .cart-count-badge { display: flex; }
-
-/* ==========================================================================
-   Floating sort button + popup
-   ========================================================================== */
-.floating-sort-btn {
-  position: fixed;
-  left: 18px;
-  bottom: 20px;
-  height: 50px;
-  min-width: 88px;
-  padding: 0 18px;
-  border: none;
-  border-radius: 26px;
-  background: var(--accent);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  font-family: var(--font);
-  font-size: 13.5px;
-  font-weight: 600;
-  box-shadow: 0 8px 22px rgba(230, 50, 50, 0.28), 0 3px 8px rgba(0, 0, 0, 0.12);
-  z-index: 41;
-  opacity: 1;
-  transform: translateX(0) scale(1);
-  transition: opacity 0.3s ease, transform 0.35s var(--ease), background 0.15s ease;
-}
-
-.floating-sort-btn::before { content: "↕"; font-size: 17px; font-weight: 700; line-height: 1; }
-.floating-sort-btn:hover { background: var(--accent-hover); }
-.floating-sort-btn:active { transform: scale(0.94); }
-
-.floating-sort-btn.sort-hidden {
-  opacity: 0;
-  transform: translateX(-30px) scale(0.75);
-  pointer-events: none;
-}
-
-.sort-menu {
-  position: fixed;
-  left: 18px;
-  bottom: 78px;
-  width: 215px;
-  padding: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-m);
-  box-shadow: var(--shadow-lg);
-  z-index: 42;
-  display: none;
-  animation: sort-in 0.18s ease;
-}
-
-.sort-menu.show { display: block; }
-
-@keyframes sort-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.sort-menu-title { padding: 8px 10px 10px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }
-
-.sort-menu button {
-  width: 100%;
-  border: none;
-  background: var(--surface);
-  padding: 11px;
-  text-align: left;
-  border-radius: 11px;
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink);
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.sort-menu button:hover { background: var(--accent-soft); color: var(--accent); }
-.sort-menu button.is-active { color: var(--accent); font-weight: 600; }
-
-/* ==========================================================================
-   Sheets (modal / bottom sheet) — detail, cart, checkout, confirmation
-   ========================================================================== */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 20, 20, 0.45);
-  z-index: 50;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.22s var(--ease);
-}
-
-.sheet-backdrop.is-open { opacity: 1; pointer-events: auto; }
-
-.sheet {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translate(-50%, 100%);
-  width: 100%;
-  max-width: 540px;
-  max-height: 88vh;
-  background: var(--surface);
-  border-radius: 24px 24px 0 0;
-  z-index: 51;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-lg);
-  transition: transform 0.3s var(--ease);
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.sheet.is-open { transform: translate(-50%, 0); pointer-events: auto; }
-
-@media (min-width: 640px) {
-  .sheet {
-    bottom: 50%;
-    transform: translate(-50%, 60%) scale(0.97);
-    border-radius: var(--radius-l);
-    opacity: 0;
-  }
-  .sheet.is-open { transform: translate(-50%, 50%); opacity: 1; }
-}
-
-.sheet__handle { width: 40px; height: 4px; background: var(--border-strong); border-radius: 999px; margin: 12px auto 4px; flex-shrink: 0; }
-
-.sheet__close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: var(--bg);
-  color: var(--ink-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-}
-
-.sheet__close:hover { background: var(--accent-soft); color: var(--accent); }
-
-.sheet__scroll { overflow-y: auto; padding-bottom: env(safe-area-inset-bottom, 0); }
-
-.detail-media { aspect-ratio: 16/10; background: var(--accent-soft); position: relative; }
-.detail-media svg { width: 100%; height: 100%; }
-
-.detail-body { padding: 18px 22px 24px; }
-
-.detail-name { font-size: 22px; font-weight: 700; margin: 8px 0 6px; }
-.detail-desc { color: var(--ink-soft); font-size: 14px; margin: 0 0 16px; }
-
-.detail-row { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--border); gap: 14px; }
-.detail-price { font-size: 21px; font-weight: 700; color: var(--price); }
-
-.detail-add-btn {
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 14.5px;
-  padding: 13px 22px;
-  border-radius: var(--radius-s);
-  width: 100%;
-  margin-top: 16px;
-}
-
-.detail-add-btn:hover { background: var(--accent-hover); }
-.detail-add-btn:disabled { background: var(--border-strong); color: var(--ink-faint); }
-
-.detail-unavailable-note { margin-top: 14px; font-size: 13px; color: var(--nonveg); background: var(--accent-soft); padding: 10px 12px; border-radius: var(--radius-s); }
-
-.sheet-title { font-size: 19px; font-weight: 700; padding: 4px 22px 14px; margin: 0; }
-
-.cart-list { padding: 0 22px; display: flex; flex-direction: column; gap: 14px; }
-
-.cart-row { display: flex; align-items: center; gap: 12px; }
-.cart-row__icon { width: 46px; height: 46px; border-radius: var(--radius-s); background: var(--accent-soft); flex-shrink: 0; overflow: hidden; }
-.cart-row__icon svg { width: 100%; height: 100%; }
-.cart-row__info { flex: 1; min-width: 0; }
-.cart-row__name { font-weight: 600; font-size: 14px; margin: 0 0 2px; }
-.cart-row__price { font-size: 12px; color: var(--ink-soft); margin: 0; }
-
-.cart-row__remove {
-  border: none;
-  background: none;
-  color: var(--ink-faint);
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-.cart-row__remove:hover { background: var(--accent-soft); color: var(--accent); }
-
-.cart-empty { padding: 40px 22px 30px; text-align: center; color: var(--ink-soft); }
-.cart-empty svg { margin: 0 auto 12px; color: var(--ink-faint); }
-
-.cart-summary { margin-top: 18px; padding: 16px 22px; border-top: 1px solid var(--border); background: #fafafa; }
-
-.summary-line { display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-soft); margin-bottom: 6px; }
-.summary-line--total { font-size: 16px; font-weight: 700; color: var(--ink); margin-top: 8px; }
-.summary-line--total .price { color: var(--price); }
-
-.primary-btn {
-  width: 100%;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  padding: 14px;
-  border-radius: var(--radius-s);
-  margin-top: 14px;
-}
-
-.primary-btn:hover { background: var(--accent-hover); }
-.primary-btn:disabled { background: var(--border-strong); color: var(--ink-faint); }
-
-.ghost-btn {
-  width: 100%;
-  border: 1.5px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 13.5px;
-  padding: 11px;
-  border-radius: var(--radius-s);
-  margin-top: 8px;
-}
-
-.ghost-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-.checkout-block { padding: 0 22px 6px; }
-.checkout-meta { display: flex; gap: 10px; margin-bottom: 16px; }
-.checkout-meta__item { flex: 1; background: #fafafa; border: 1px solid var(--border); border-radius: var(--radius-s); padding: 10px 12px; }
-.checkout-meta__label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); font-weight: 700; margin: 0 0 3px; }
-.checkout-meta__value { font-size: 14.5px; font-weight: 700; margin: 0; }
-
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
-.field input, .field textarea {
-  width: 100%;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  border-radius: var(--radius-s);
-  padding: 11px 13px;
-  font-size: 14.5px;
-  color: var(--ink);
-  resize: vertical;
-}
-.field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
-
-.confirm-body { padding: 10px 26px 30px; text-align: center; }
-
-.confirm-check {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: #eaf6ec;
-  color: var(--veg-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 8px auto 18px;
-  animation: pop-in 0.4s var(--ease) both;
-}
-
-@keyframes pop-in {
-  from { transform: scale(0.6); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.confirm-title { font-size: 21px; font-weight: 700; margin: 0 0 6px; }
-
-.confirm-table {
-  display: inline-block;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  margin-bottom: 14px;
-}
-
-.confirm-note { color: var(--ink-soft); font-size: 14px; margin: 0 0 18px; line-height: 1.5; }
-
-.confirm-order-id { background: #fafafa; border: 1px dashed var(--border-strong); border-radius: var(--radius-s); padding: 14px; margin-bottom: 22px; }
-.confirm-order-id__label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-faint); font-weight: 700; margin: 0 0 4px; }
-.confirm-order-id__value { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; margin: 0; }
-
-/* ==========================================================================
-   Footer / QR docs
-   ========================================================================== */
-.footer-info { margin: 10px 5% 0; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-m); }
-.footer-info__title { font-size: 14.5px; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
-.footer-info__desc { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 12px; line-height: 1.5; }
-.footer-info__rows { display: flex; flex-direction: column; gap: 8px; }
-.footer-info__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fafafa; border-radius: var(--radius-s); padding: 9px 12px; font-size: 12px; }
-.footer-info__row code { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; white-space: nowrap; }
-.footer-info__row strong { flex-shrink: 0; color: var(--ink); }
-
-.footer-credit { text-align: center; color: var(--ink-faint); font-size: 11.5px; padding: 22px 20px 10px; }
-
-/* Toast */
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translate(-50%, 12px);
-  background: var(--ink);
-  color: #fff;
-  padding: 11px 20px;
-  border-radius: 999px;
-  font-size: 13.5px;
-  font-weight: 600;
-  box-shadow: var(--shadow-md);
-  z-index: 60;
-  opacity: 0;
-  transition: all 0.25s var(--ease);
-  pointer-events: none;
-}
-
-.toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
-
-/* ==========================================================================
-   Mobile
-   ========================================================================== */
-@media (max-width: 700px) {
-  .header { padding: 15px; }
-  .brand-name { font-size: 20px; }
-  .brand-subtitle { font-size: 10.5px; }
-  .search-wrapper, .banner-wrapper, .filter-area, .categories, .menu-title, .food-grid, .footer-info {
-    padding-left: 15px;
-    padding-right: 15px;
-  }
-  .food-grid { padding-left: 15px; padding-right: 15px; }
-  .banner-viewport { height: 175px; }
-  .banner-content { padding: 20px; }
-  .banner-content h1 { font-size: 26px; }
-  .banner-content p { font-size: 12.5px; }
-  .food-card { min-height: 145px; }
-  .cart-bar.compact { right: 15px; }
-}
-
-@media (max-width: 400px) {
-  .food-image-box { width: 100px; height: 90px; }
-  .food-name { font-size: 14px; }
-}
-/* ================= SPLASH SCREEN ================= */
-
-.splash-screen {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: #fffaf4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-}
-
-.splash-screen.hide {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.splash-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  animation: splashEnter 0.8s ease;
-}
-
-.splash-logo {
-  width: 95px;
-  height: 95px;
-  object-fit: contain;
-  border-radius: 22px;
-  margin-bottom: 18px;
-}
-
-.splash-content h1 {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
-}
-
-.splash-content p {
-  margin: 8px 0 16px;
-  opacity: 0.65;
-}
-
-.splash-table {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.splash-loader {
-  width: 28px;
-  height: 28px;
-  border: 3px solid #ddd;
-  border-top-color: #222;
-  border-radius: 50%;
-  animation: splashSpin 0.8s linear infinite;
-}
-
-@keyframes splashSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes splashEnter {
-  from {
-    opacity: 0;
-    transform: translateY(15px) scale(0.96);
+  // Absolute safety net: no matter what else fails, the splash is gone
+  // within ~3.5s of page load.
+  setTimeout(forceHideSplash, 3500);
+
+  window.addEventListener("error", forceHideSplash);
+  window.addEventListener("unhandledrejection", forceHideSplash);
+
+  function safeCall(fn, label) {
+    try {
+      fn();
+    } catch (err) {
+      console.error(`[FoodCorner] ${label} failed:`, err);
+    }
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+  /* --------------------------------------------------------------------
+     1. TABLE NUMBER — read-only from the URL, never editable by hand
+     -------------------------------------------------------------------- */
+  function getTableNumber() {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("table");
+    if (!raw) return null;
+    const cleaned = raw.replace(/[^0-9]/g, "");
+    return cleaned ? cleaned : null;
   }
+
+  const TABLE_NUMBER = getTableNumber();
+
+  function renderTableBadge() {
+    const el = document.getElementById("tableBadge");
+    if (TABLE_NUMBER) {
+      el.classList.remove("table-badge--unset");
+      el.textContent = `Table ${TABLE_NUMBER}`;
+    } else {
+      el.classList.add("table-badge--unset");
+      el.textContent = "Takeaway";
+    }
+  }
+
+  function tableDisplayName() {
+    return TABLE_NUMBER ? `Table ${TABLE_NUMBER}` : "Takeaway / Table Not Selected";
+  }
+
+  /* --------------------------------------------------------------------
+     2. STATE
+     -------------------------------------------------------------------- */
+  const CART_KEY = "foodcorner_cart_v1";
+  const FAVORITES_KEY = "foodcorner_favorites_v1";
+  const RECENTLY_VIEWED_KEY = "foodcorner_recently_viewed_v1";
+  const THEME_KEY = "foodcorner_theme_v1";
+  const RECENTLY_VIEWED_MAX = 8;
+
+  let activeCategory = "all";
+  let activeType = "all"; // all | veg | nonveg
+  let activeSort = "default"; // default | low | high | name
+  let activeBudget = "all"; // all | "0-100" | "100-200" | "200-300" | "300-"
+  let searchTerm = "";
+  let cart = loadCart(); // { [itemId]: qty }
+  let favorites = loadFavorites(); // { [itemId]: true }
+  let recentlyViewed = loadRecentlyViewed(); // [itemId, ...] most recent first
+  let activeDetailItem = null;
+
+  // Floating search bubble — see initFloatingSearch() / updateFloatingSearchVisibility()
+  let floatingSearchBtn = null;
+  let floatingSearchTip = null;
+  let originalSearchBarVisible = true;
+
+  function updateFloatingSearchVisibility() {
+    if (!floatingSearchBtn) return;
+    floatingSearchBtn.classList.toggle("is-visible", !originalSearchBarVisible);
+  }
+
+  function loadFavorites() {
+    try {
+      const raw = localStorage.getItem(FAVORITES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.warn("Could not read favorites from localStorage:", e);
+      return {};
+    }
+  }
+
+  function saveFavorites() {
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+    } catch (e) {
+      console.warn("Could not save favorites to localStorage:", e);
+    }
+  }
+
+  function isFavorite(id) {
+    return !!favorites[Number(id)];
+  }
+
+  function toggleFavorite(id) {
+    id = Number(id);
+    if (favorites[id]) {
+      delete favorites[id];
+    } else {
+      favorites[id] = true;
+    }
+    saveFavorites();
+    renderAll();
+    renderCategories();
+    if (settingsSheetOpen) renderSettingsCounts();
+  }
+
+  function favoritesCount() {
+    return Object.keys(favorites).length;
+  }
+
+  function loadRecentlyViewed() {
+    try {
+      const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Could not read recently viewed from localStorage:", e);
+      return [];
+    }
+  }
+
+  function saveRecentlyViewed() {
+    try {
+      localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(recentlyViewed));
+    } catch (e) {
+      console.warn("Could not save recently viewed to localStorage:", e);
+    }
+  }
+
+  function addRecentlyViewed(id) {
+    id = Number(id);
+    recentlyViewed = recentlyViewed.filter((existingId) => existingId !== id);
+    recentlyViewed.unshift(id);
+    recentlyViewed = recentlyViewed.slice(0, RECENTLY_VIEWED_MAX);
+    saveRecentlyViewed();
+    renderRecentlyViewed();
+  }
+
+  function loadCart() {
+    try {
+      const raw = localStorage.getItem(CART_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.warn("Could not read cart from localStorage:", e);
+      return {};
+    }
+  }
+
+  function saveCart() {
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    } catch (e) {
+      console.warn("Could not save cart to localStorage:", e);
+    }
+  }
+
+  function findItem(id) {
+    return MENU_ITEMS.find((i) => i.id === Number(id));
+  }
+
+  function cartEntries() {
+    return Object.keys(cart)
+      .map((id) => ({ item: findItem(id), qty: cart[id] }))
+      .filter((e) => e.item && e.qty > 0);
+  }
+
+  function cartTotalCount() {
+    return cartEntries().reduce((sum, e) => sum + e.qty, 0);
+  }
+
+  function cartTotalPrice() {
+    return cartEntries().reduce((sum, e) => sum + e.qty * e.item.price, 0);
+  }
+
+  function setQty(id, qty) {
+    id = Number(id);
+    if (qty <= 0) {
+      delete cart[id];
+    } else {
+      cart[id] = qty;
+    }
+    saveCart();
+    // Quantity changes never change which cards are shown, so patch just
+    // this one card's control instead of rebuilding the whole grid —
+    // rebuilding on every tap was what made add-to-cart feel like a reload.
+    if (!updateCardActionInPlace(id)) renderGrid();
+    renderCartBar();
+    if (cartSheetOpen) renderCartSheet();
+  }
+
+  function addToCart(id, qty) {
+    id = Number(id);
+    const current = cart[id] || 0;
+    setQty(id, current + (qty || 1));
+    showToast("Added to cart");
+    const badge = document.getElementById("cartBadge");
+    if (badge) {
+      badge.classList.remove("pulse");
+      // force reflow so the animation can restart on back-to-back adds
+      void badge.offsetWidth;
+      badge.classList.add("pulse");
+    }
+  }
+
+  /* --------------------------------------------------------------------
+     3. ICON ILLUSTRATIONS — inline SVG per dish category, palette-matched
+     -------------------------------------------------------------------- */
+  const ICONS = {
+    skewer: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><line x1="30" y1="70" x2="175" y2="70" stroke="#e63232" stroke-width="4" stroke-linecap="round"/><rect x="45" y="52" width="26" height="36" rx="6" fill="#a95b19"/><rect x="80" y="50" width="24" height="40" rx="8" fill="#e63232"/><rect x="113" y="53" width="24" height="34" rx="6" fill="#159447" opacity="0.85"/><rect x="146" y="52" width="22" height="36" rx="6" fill="#a95b19"/></svg>`,
+    bowl: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><ellipse cx="100" cy="95" rx="70" ry="16" fill="#e63232" opacity="0.12"/><path d="M35 78 a65 40 0 0 0 130 0 z" fill="#fff" stroke="#e63232" stroke-width="3"/><circle cx="78" cy="70" r="6" fill="#e63232"/><circle cx="102" cy="64" r="5" fill="#159447"/><circle cx="122" cy="72" r="6" fill="#a95b19"/><circle cx="92" cy="76" r="4" fill="#e63232"/></svg>`,
+    curry: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><ellipse cx="100" cy="90" rx="72" ry="30" fill="#e63232"/><ellipse cx="100" cy="84" rx="72" ry="26" fill="#c0532f"/><ellipse cx="100" cy="80" rx="60" ry="18" fill="#d9713f" opacity="0.7"/><circle cx="70" cy="76" r="5" fill="#fff" opacity="0.8"/><circle cx="130" cy="82" r="4" fill="#fff" opacity="0.6"/><circle cx="105" cy="70" r="4" fill="#fff" opacity="0.7"/></svg>`,
+    noodles: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><ellipse cx="100" cy="95" rx="68" ry="26" fill="#a95b19" opacity="0.2"/><path d="M45 90 q15 -35 30 0 q15 -35 30 0 q15 -35 30 0 q15 -35 30 0" fill="none" stroke="#a95b19" stroke-width="5" stroke-linecap="round"/><circle cx="70" cy="60" r="6" fill="#159447"/><circle cx="128" cy="58" r="6" fill="#e63232"/></svg>`,
+    wok: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><path d="M28 72 a72 30 0 0 0 144 0 z" fill="#222" opacity="0.85"/><ellipse cx="100" cy="66" rx="58" ry="16" fill="#e63232"/><circle cx="80" cy="63" r="7" fill="#a95b19"/><circle cx="112" cy="60" r="6" fill="#c0532f"/><circle cx="130" cy="66" r="6" fill="#159447"/><line x1="24" y1="66" x2="4" y2="60" stroke="#222" stroke-width="4" stroke-linecap="round" opacity="0.85"/></svg>`,
+    pizza: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><circle cx="100" cy="70" r="52" fill="#e8b45a"/><circle cx="100" cy="70" r="44" fill="#c0532f"/><circle cx="100" cy="70" r="38" fill="#e8b45a" opacity="0.9"/><circle cx="80" cy="58" r="7" fill="#e63232"/><circle cx="118" cy="62" r="7" fill="#e63232"/><circle cx="100" cy="86" r="7" fill="#e63232"/><circle cx="122" cy="88" r="5" fill="#159447"/><circle cx="76" cy="82" r="5" fill="#159447"/></svg>`,
+    burger: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><path d="M40 65 a60 26 0 0 1 120 0 z" fill="#c0532f"/><rect x="38" y="65" width="124" height="10" fill="#159447"/><rect x="38" y="75" width="124" height="12" fill="#e63232"/><rect x="38" y="87" width="124" height="10" fill="#a95b19"/><path d="M36 97 q64 18 128 0 l-6 14 q-58 14 -116 0 z" fill="#c0532f"/></svg>`,
+    drink: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><path d="M76 36 h48 l-8 78 a4 4 0 0 1 -4 4 h-24 a4 4 0 0 1 -4 -4 z" fill="#fff" stroke="#e63232" stroke-width="3"/><rect x="80" y="52" width="40" height="30" fill="#a95b19" opacity="0.85"/><line x1="100" y1="20" x2="100" y2="40" stroke="#e63232" stroke-width="4" stroke-linecap="round"/></svg>`,
+    dessert: `<svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"><rect width="200" height="140" fill="#fff1f1"/><rect x="55" y="70" width="90" height="30" rx="4" fill="#e63232"/><ellipse cx="100" cy="70" rx="45" ry="12" fill="#c0532f"/><circle cx="100" cy="55" r="16" fill="#fff"/><circle cx="100" cy="48" r="4" fill="#e63232"/></svg>`
+  };
+  const CATEGORY_IMAGES = {
+  starters: "assets/food/starter.jpg",
+  soups: "assets/food/soup.jpg",
+  chinese: "assets/food/chinese.jpg",
+  chowmein: "assets/food/chowmein.jpg",
+  rolls: "assets/food/roll.jpg",
+  southindian: "assets/food/dosa.jpg",
+  rice: "assets/food/rice.jpg",
+  biryani: "assets/food/biryani.jpg",
+  chicken: "assets/food/chicken.jpg",
+  sabji: "assets/food/sabji.jpg",
+  paneer: "assets/food/paneer.jpg",
+  mushroom: "assets/food/mushroom.jpg",
+  kaju: "assets/food/kaju.jpg",
+  tandoor: "assets/food/roti.jpg",
+  bread: "assets/food/roti.jpg",
+  dal: "assets/food/dal.jpg",
+  thali: "assets/food/thali.jpg",
+  salad: "assets/food/salad.jpg",
+  drinks: "assets/food/drinks.jpg"
+};
+
+  function iconSvg(key) {
+    return ICONS[key] || ICONS.bowl;
+  }
+
+  /* --------------------------------------------------------------------
+     3b. INDIVIDUAL FOOD IMAGES — auto-derived from item name, with a
+         safe fallback to the existing SVG illustrations if a JPG is
+         missing. Defined once, globally, before it is used anywhere.
+     -------------------------------------------------------------------- */
+  function foodImagePath(item) {
+    if (item.image) return item.image;
+
+    const filename = item.name
+      .toLowerCase()
+      .replace(/[()]/g, "")
+      .replace(/[\/]/g, "-")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    return `assets/food/${filename}.jpg`;
+  }
+
+  // Inline onerror handlers run in the global scope, so this fallback is
+  // attached to window rather than kept inside the IIFE closure. It swaps
+  // a broken <img> for the existing inline SVG illustration exactly once
+  // (onerror is cleared before replacement, so there is no retry loop).
+  window.__foodImageFallback = function (imgEl, iconKey) {
+    if (!imgEl || !imgEl.parentNode) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "food-image-fallback";
+    wrapper.setAttribute("style", "width:100%;height:100%;");
+    wrapper.innerHTML = iconSvg(iconKey);
+    imgEl.replaceWith(wrapper);
+  };
+
+  const BANNER_PATTERNS = {
+    curry: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;"><circle cx="340" cy="40" r="90" fill="rgba(255,255,255,0.08)"/><circle cx="380" cy="180" r="60" fill="rgba(255,255,255,0.06)"/><circle cx="260" cy="190" r="40" fill="rgba(255,255,255,0.05)"/></svg>`,
+    pizza: `<svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;"><circle cx="330" cy="60" r="75" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="14"/><circle cx="350" cy="170" r="45" fill="rgba(255,255,255,0.07)"/></svg>`
+  };
+
+  /* --------------------------------------------------------------------
+     4. RENDERING — categories, grid, cart bar
+     -------------------------------------------------------------------- */
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  // "favorites" is a virtual category layered on top of CATEGORIES (which
+  // stays exactly as defined in menu.js) — it's rendered as an extra chip
+  // and handled specially in getFilteredItems().
+  function renderCategories() {
+    const wrap = document.getElementById("categories");
+    const favChip = `
+      <button class="chip chip--favorites ${activeCategory === "favorites" ? "is-active" : ""}" data-cat="favorites">
+        ♥ Favorites${favoritesCount() ? ` (${favoritesCount()})` : ""}
+      </button>`;
+    wrap.innerHTML = favChip + CATEGORIES.map((c) => `
+      <button class="chip ${c.id === activeCategory ? "is-active" : ""}" data-cat="${c.id}">
+        ${escapeHtml(c.label)}
+      </button>
+    `).join("");
+
+    wrap.querySelectorAll(".chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeCategory = btn.dataset.cat;
+        renderCategories();
+        renderGrid();
+      });
+    });
+  }
+
+  function renderTypeFilter() {
+    document.querySelectorAll(".filter").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.type === activeType);
+    });
+  }
+
+  document.getElementById("filterArea").addEventListener("click", (e) => {
+    const btn = e.target.closest(".filter");
+    if (!btn) return;
+    activeType = btn.dataset.type;
+    renderTypeFilter();
+    renderGrid();
+  });
+
+  function renderBudgetFilter() {
+    document.querySelectorAll(".budget-chip").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.budget === activeBudget);
+    });
+  }
+
+  const budgetFilterEl = document.getElementById("budgetFilter");
+  if (budgetFilterEl) {
+    budgetFilterEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".budget-chip");
+      if (!btn) return;
+      activeBudget = btn.dataset.budget;
+      renderBudgetFilter();
+      renderGrid();
+    });
+  }
+
+  function categoryLabel(categoryId) {
+    const match = CATEGORIES.find((c) => c.id === categoryId);
+    return match ? match.label : "";
+  }
+
+  function matchesBudget(item) {
+    if (activeBudget === "all") return true;
+    const [minStr, maxStr] = activeBudget.split("-");
+    const min = Number(minStr);
+    const max = maxStr === "" || maxStr === undefined ? Infinity : Number(maxStr);
+    return item.price >= min && item.price <= max;
+  }
+
+  function getFilteredItems() {
+    const term = searchTerm.trim().toLowerCase();
+    let items = MENU_ITEMS.filter((item) => {
+      const matchesCategory =
+        activeCategory === "all" ||
+        (activeCategory === "favorites" ? isFavorite(item.id) : item.category === activeCategory);
+      const matchesType = activeType === "all" || item.type === activeType;
+      const matchesSearch = !term || item.name.toLowerCase().includes(term) ||
+        item.description.toLowerCase().includes(term) ||
+        categoryLabel(item.category).toLowerCase().includes(term);
+      return matchesCategory && matchesType && matchesSearch && matchesBudget(item);
+    });
+
+    if (activeSort === "low") {
+      items = items.slice().sort((a, b) => a.price - b.price);
+    } else if (activeSort === "high") {
+      items = items.slice().sort((a, b) => b.price - a.price);
+    } else if (activeSort === "name") {
+      items = items.slice().sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return items;
+  }
+
+  function cardActionHtml(item) {
+    const qty = cart[item.id] || 0;
+    if (!item.available) {
+      return `<button class="add-btn" disabled aria-label="Out of stock">✕</button>`;
+    } else if (qty > 0) {
+      return `
+        <div class="quantity" data-id="${item.id}">
+          <button type="button" data-action="dec" aria-label="Decrease quantity">−</button>
+          <span>${qty}</span>
+          <button type="button" data-action="inc" aria-label="Increase quantity">+</button>
+        </div>`;
+    }
+    return `<button class="add-btn" data-action="add" data-id="${item.id}" aria-label="Add ${escapeHtml(item.name)}">+</button>`;
+  }
+
+  function bindCardActionEvents(actionEl) {
+    if (!actionEl) return;
+    const addBtn = actionEl.matches("[data-action='add']") ? actionEl : null;
+    if (addBtn) {
+      addBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addToCart(addBtn.dataset.id, 1);
+      });
+      return;
+    }
+    if (actionEl.classList.contains("quantity")) {
+      const id = actionEl.dataset.id;
+      actionEl.querySelector("[data-action='inc']").addEventListener("click", (e) => {
+        e.stopPropagation();
+        setQty(id, (cart[id] || 0) + 1);
+      });
+      actionEl.querySelector("[data-action='dec']").addEventListener("click", (e) => {
+        e.stopPropagation();
+        setQty(id, (cart[id] || 0) - 1);
+      });
+    }
+  }
+
+  // Swaps just one card's add/quantity control in place, instead of
+  // rebuilding the whole grid — keeps quantity taps instant with no
+  // flash or scroll jump. Returns true if a card was found and patched.
+  function updateCardActionInPlace(id) {
+    id = Number(id);
+    const item = findItem(id);
+    if (!item) return false;
+    const card = document.querySelector(`.food-card[data-open-id="${id}"]`);
+    if (!card) return false;
+    const actionEl = card.querySelector(".add-btn, .quantity");
+    if (!actionEl) return false;
+    actionEl.outerHTML = cardActionHtml(item);
+    bindCardActionEvents(card.querySelector(".add-btn, .quantity"));
+    return true;
+  }
+
+  function cardTemplate(item) {
+    const foodImage = foodImagePath(item);
+    const vegClass = item.type === "veg" ? "" : "nonveg";
+    const vegLabel = item.type === "veg" ? "Veg" : "Non-Veg";
+    const actionHtml = cardActionHtml(item);
+
+    // Optional premium fields — every one is undefined-safe so items
+    // without them render exactly as before.
+    const badges = [];
+    if (item.popular) badges.push(`<span class="food-badge food-badge--popular">Popular</span>`);
+    if (item.trending) badges.push(`<span class="food-badge food-badge--trending">Trending</span>`);
+    if (item.special) badges.push(`<span class="food-badge food-badge--special">Special</span>`);
+    if (item.new) badges.push(`<span class="food-badge food-badge--new">New</span>`);
+    const badgesHtml = badges.length ? `<div class="food-badges">${badges.join("")}</div>` : "";
+
+    const metaBits = [];
+    if (item.prepTime) metaBits.push(`<span class="food-meta__prep">⏱ ${escapeHtml(item.prepTime)}</span>`);
+    if (item.spiceLevel) metaBits.push(`<span class="food-meta__spice">${"🌶".repeat(Math.min(item.spiceLevel, 3))}</span>`);
+    const metaHtml = metaBits.length ? `<div class="food-meta">${metaBits.join("")}</div>` : "";
+
+    const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+    const discountPct = hasDiscount ? Math.round((1 - item.price / item.originalPrice) * 100) : 0;
+    const priceHtml = hasDiscount
+      ? `<div class="food-price-row">
+          <p class="food-price">₹${item.price}</p>
+          <span class="food-price--original">₹${item.originalPrice}</span>
+          <span class="discount-badge">${discountPct}% OFF</span>
+        </div>`
+      : `<p class="food-price">₹${item.price}</p>`;
+    const imageDiscountBadge = hasDiscount ? `<span class="image-discount-badge">${discountPct}% OFF</span>` : "";
+
+    return `
+      <article class="food-card" data-open-id="${item.id}">
+        <div class="food-details">
+          ${badgesHtml}
+          <h3 class="food-name">${escapeHtml(item.name)}</h3>
+          <p class="food-type">${escapeHtml(item.description)}</p>
+          ${metaHtml}
+          ${priceHtml}
+          <span class="${item.available ? "available" : "unavailable"}">${item.available ? "● Available" : "● Out of Stock"}</span>
+        </div>
+        <div class="food-image-box">
+          <div class="food-image is-loading ${!item.available ? "is-unavailable" : ""}">
+          ${imageDiscountBadge}
+          <img
+            src="${foodImage}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onload="this.classList.add('is-loaded'); this.parentElement.classList.remove('is-loading');"
+            onerror="this.onerror=null; this.parentElement.classList.remove('is-loading'); window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+          <button type="button" class="fav-btn ${isFavorite(item.id) ? "is-fav" : ""}" data-action="fav" data-id="${item.id}" aria-label="${isFavorite(item.id) ? "Remove from favorites" : "Add to favorites"}">
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="${isFavorite(item.id) ? "currentColor" : "none"}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+          <span class="food-mark ${vegClass}" aria-label="${vegLabel}" title="${vegLabel}"></span>
+          ${actionHtml}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById("menuGrid");
+    const items = getFilteredItems();
+
+    // Floating search bubble glow — reflects the real filtered count from
+    // getFilteredItems(), never a second search/filter system.
+    const hasNoSearchResults = searchTerm.trim().length > 0 && items.length === 0;
+    if (floatingSearchBtn) floatingSearchBtn.classList.toggle("is-glowing", hasNoSearchResults);
+    if (floatingSearchTip) floatingSearchTip.classList.toggle("is-visible", hasNoSearchResults);
+
+    let heading = "All Dishes";
+    if (activeCategory === "favorites") heading = "Favorites";
+    else if (activeCategory !== "all") heading = categoryLabel(activeCategory) || "All Dishes";
+    document.getElementById("menuHeading").textContent = heading;
+    document.getElementById("dishesCount").textContent = `${items.length} ${items.length === 1 ? "dish" : "dishes"}`;
+
+    if (items.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <strong>No dishes found</strong>
+          <p>${activeCategory === "favorites" ? "Tap the heart on a dish to save it here." : "Try a different search, category, or filter."}</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = items.map(cardTemplate).join("");
+
+    grid.querySelectorAll("[data-action='add']").forEach((btn) => bindCardActionEvents(btn));
+    grid.querySelectorAll(".quantity").forEach((stepper) => bindCardActionEvents(stepper));
+
+    grid.querySelectorAll("[data-action='fav']").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleFavorite(btn.dataset.id);
+      });
+    });
+
+    grid.querySelectorAll(".food-card").forEach((card) => {
+      card.addEventListener("click", () => openDetail(card.dataset.openId));
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     4b. RECENTLY VIEWED — last few dishes opened in the detail sheet
+     -------------------------------------------------------------------- */
+  function renderRecentlyViewed() {
+    const section = document.getElementById("recentlyViewedSection");
+    const track = document.getElementById("recentlyViewedTrack");
+    if (!section || !track) return;
+
+    const items = recentlyViewed.map(findItem).filter(Boolean);
+    if (items.length === 0) {
+      section.style.display = "none";
+      return;
+    }
+
+    section.style.display = "block";
+    track.innerHTML = items.map((item) => `
+      <button type="button" class="recently-viewed-card" data-open-id="${item.id}">
+        <div class="recently-viewed-card__img">
+          <img
+            src="${foodImagePath(item)}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <p class="recently-viewed-card__name">${escapeHtml(item.name)}</p>
+      </button>
+    `).join("");
+
+    track.querySelectorAll(".recently-viewed-card").forEach((card) => {
+      card.addEventListener("click", () => openDetail(card.dataset.openId));
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     5. CART BAR — expands with items, collapses to a compact FAB;
+        the floating sort button hides while the cart pill is expanded.
+     -------------------------------------------------------------------- */
+  let compactTimer = null;
+
+  function renderCartBar() {
+    const bar = document.getElementById("cartBar");
+    const sortBtn = document.getElementById("floatingSortBtn");
+    const count = cartTotalCount();
+
+    clearTimeout(compactTimer);
+
+    if (count > 0) {
+      bar.classList.add("show");
+      bar.classList.remove("compact");
+      sortBtn.classList.add("sort-hidden");
+
+      document.getElementById("cartBadge").textContent = count;
+      document.getElementById("cartCount").textContent = `${count} ${count === 1 ? "item" : "items"}`;
+      document.getElementById("cartTotalLabel").textContent = `₹${cartTotalPrice()}`;
+
+      compactTimer = setTimeout(() => {
+        bar.classList.add("compact");
+        sortBtn.classList.remove("sort-hidden");
+      }, 2200);
+    } else {
+      bar.classList.remove("show", "compact");
+      sortBtn.classList.remove("sort-hidden");
+    }
+  }
+
+  function renderAll() {
+    renderGrid();
+    renderCartBar();
+    if (cartSheetOpen) renderCartSheet();
+  }
+
+  /* --------------------------------------------------------------------
+     6. SEARCH — full-page overlay (Zomato-style), backed by a
+        precomputed search index so filtering stays instant even as the
+        menu grows. The small header bar is a tap-to-open trigger; all
+        typing happens inside the overlay.
+     -------------------------------------------------------------------- */
+  const RECENT_SEARCHES_KEY = "foodcorner_recent_searches_v1";
+  const RECENT_SEARCHES_MAX = 6;
+  let recentSearches = loadRecentSearches();
+  let searchIndex = [];
+
+  function loadRecentSearches() {
+    try {
+      const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.warn("Could not read recent searches from localStorage:", e);
+      return [];
+    }
+  }
+
+  function saveRecentSearches() {
+    try {
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches));
+    } catch (e) {
+      console.warn("Could not save recent searches to localStorage:", e);
+    }
+  }
+
+  function addRecentSearch(term) {
+    term = term.trim();
+    if (!term) return;
+    recentSearches = recentSearches.filter((t) => t.toLowerCase() !== term.toLowerCase());
+    recentSearches.unshift(term);
+    recentSearches = recentSearches.slice(0, RECENT_SEARCHES_MAX);
+    saveRecentSearches();
+  }
+
+  // Built once from MENU_ITEMS: each entry pairs an item with a single
+  // lowercase "haystack" string (name + description + category label) so
+  // every keystroke is a plain substring check instead of re-normalizing
+  // every field on every render.
+  function buildSearchIndex() {
+    searchIndex = MENU_ITEMS.map((item) => ({
+      item,
+      haystack: [item.name, item.description, categoryLabel(item.category)].join(" ").toLowerCase(),
+    }));
+  }
+
+  function searchIndexResults(term) {
+    const t = term.trim().toLowerCase();
+    if (!t) return [];
+    const matches = searchIndex.filter((entry) => entry.haystack.includes(t));
+    matches.sort((a, b) => {
+      const aStarts = a.item.name.toLowerCase().startsWith(t) ? 0 : 1;
+      const bStarts = b.item.name.toLowerCase().startsWith(t) ? 0 : 1;
+      return aStarts - bStarts;
+    });
+    return matches.map((entry) => entry.item);
+  }
+
+  const searchTrigger = document.getElementById("searchTrigger");
+  const searchTriggerText = document.getElementById("searchTriggerText");
+  const searchClear = document.getElementById("searchClear");
+  const searchOverlay = document.getElementById("searchOverlay");
+  const searchOverlayInput = document.getElementById("searchOverlayInput");
+  const searchOverlayClear = document.getElementById("searchOverlayClear");
+  const searchOverlayBack = document.getElementById("searchOverlayBack");
+  const searchOverlayBody = document.getElementById("searchOverlayBody");
+
+  function syncSearchTrigger() {
+    const hasTerm = searchTerm.trim().length > 0;
+    searchTriggerText.textContent = hasTerm ? searchTerm : "Search for dishes, cuisines...";
+    searchTriggerText.classList.toggle("has-term", hasTerm);
+    searchClear.classList.toggle("is-visible", hasTerm);
+  }
+
+  function openSearchOverlay() {
+    searchOverlayInput.value = searchTerm;
+    searchOverlayClear.classList.toggle("is-visible", searchTerm.length > 0);
+    searchOverlay.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+    renderSearchOverlay();
+    setTimeout(() => searchOverlayInput.focus(), 260);
+  }
+
+  function closeSearchOverlay() {
+    searchOverlay.classList.remove("is-open");
+    const anySheetOpen = document.querySelectorAll(".sheet.is-open").length > 0;
+    if (!anySheetOpen) document.body.style.overflow = "";
+    syncSearchTrigger();
+    updateFloatingSearchVisibility();
+  }
+
+  /* --------------------------------------------------------------------
+     6b. FLOATING SEARCH BUBBLE — a compact stand-in for the full search
+         bar once it scrolls out of view. It owns no filtering logic of
+         its own: clicking it just opens the existing search overlay
+         above and focuses the existing searchOverlayInput.
+     -------------------------------------------------------------------- */
+  function initFloatingSearch() {
+    floatingSearchBtn = document.getElementById("floatingSearchBtn");
+    floatingSearchTip = document.getElementById("floatingSearchTip");
+    const searchWrapperEl = document.querySelector(".search-wrapper");
+    if (!floatingSearchBtn || !searchWrapperEl) return;
+
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            originalSearchBarVisible = entry.isIntersecting;
+            updateFloatingSearchVisibility();
+          });
+        },
+        { threshold: 0 }
+      );
+      observer.observe(searchWrapperEl);
+    } else {
+      // Fallback for browsers without IntersectionObserver support.
+      const fallbackCheck = () => {
+        originalSearchBarVisible = searchWrapperEl.getBoundingClientRect().bottom > 0;
+        updateFloatingSearchVisibility();
+      };
+      window.addEventListener("scroll", fallbackCheck, { passive: true });
+      fallbackCheck();
+    }
+
+    floatingSearchBtn.addEventListener("click", () => {
+      floatingSearchBtn.classList.add("is-opening");
+      openSearchOverlay();
+      setTimeout(() => floatingSearchBtn.classList.remove("is-opening"), 320);
+    });
+  }
+
+  function renderSearchOverlay() {
+    const term = searchOverlayInput.value;
+
+    if (!term.trim()) {
+      const recentHtml = recentSearches.length ? `
+        <div class="search-section">
+          <div class="search-section__head">
+            <span>Recent Searches</span>
+            <button type="button" id="clearRecentSearches">Clear</button>
+          </div>
+          <div class="search-chip-row">
+            ${recentSearches.map((t) => `<button type="button" class="search-chip" data-term="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join("")}
+          </div>
+        </div>` : "";
+
+      searchOverlayBody.innerHTML = `
+        ${recentHtml}
+        <div class="search-section">
+          <div class="search-section__head"><span>Popular Categories</span></div>
+          <div class="search-chip-row">
+            ${CATEGORIES.map((c) => `<button type="button" class="search-chip" data-cat="${c.id}">${escapeHtml(c.label)}</button>`).join("")}
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const results = searchIndexResults(term);
+
+    if (results.length === 0) {
+      searchOverlayBody.innerHTML = `
+        <div class="empty-state" style="padding-top:50px;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <strong>No dishes found</strong>
+          <p>Try a different dish name, description, or cuisine.</p>
+        </div>`;
+      return;
+    }
+
+    searchOverlayBody.innerHTML = `<div class="search-results">${results.map(searchResultRowTemplate).join("")}</div>`;
+  }
+
+  function searchResultRowTemplate(item, index) {
+    const qty = cart[item.id] || 0;
+    const foodImage = foodImagePath(item);
+    const vegClass = item.type === "veg" ? "" : "nonveg";
+    let actionHtml;
+    if (!item.available) {
+      actionHtml = `<button class="search-add-btn" disabled aria-label="Out of stock">✕</button>`;
+    } else if (qty > 0) {
+      actionHtml = `
+        <div class="search-qty" data-id="${item.id}">
+          <button type="button" data-action="dec" aria-label="Decrease quantity">−</button>
+          <span>${qty}</span>
+          <button type="button" data-action="inc" aria-label="Increase quantity">+</button>
+        </div>`;
+    } else {
+      actionHtml = `<button class="search-add-btn" data-action="add" data-id="${item.id}" aria-label="Add ${escapeHtml(item.name)}">+</button>`;
+    }
+
+    return `
+      <article class="search-result-row" data-open-id="${item.id}" style="animation-delay:${Math.min(index, 8) * 30}ms;">
+        <div class="search-result-row__img">
+          <img
+            src="${foodImage}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <div class="search-result-row__info">
+          <p class="search-result-row__name">${escapeHtml(item.name)}</p>
+          <p class="search-result-row__desc">${escapeHtml(item.description)}</p>
+          <p class="search-result-row__price">₹${item.price}</p>
+        </div>
+        <div class="search-result-row__action">${actionHtml}</div>
+      </article>
+    `;
+  }
+
+  searchTrigger.addEventListener("click", openSearchOverlay);
+
+  searchClear.addEventListener("click", () => {
+    searchTerm = "";
+    syncSearchTrigger();
+    renderGrid();
+  });
+
+  searchOverlayBack.addEventListener("click", closeSearchOverlay);
+
+  searchOverlayInput.addEventListener("input", () => {
+    searchTerm = searchOverlayInput.value;
+    searchOverlayClear.classList.toggle("is-visible", searchTerm.length > 0);
+    renderSearchOverlay();
+    renderGrid();
+  });
+
+  searchOverlayInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && searchOverlayInput.value.trim()) {
+      addRecentSearch(searchOverlayInput.value);
+    }
+  });
+
+  searchOverlayClear.addEventListener("click", () => {
+    searchTerm = "";
+    searchOverlayInput.value = "";
+    searchOverlayClear.classList.remove("is-visible");
+    renderSearchOverlay();
+    renderGrid();
+    searchOverlayInput.focus();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && searchOverlay.classList.contains("is-open")) closeSearchOverlay();
+  });
+
+  searchOverlayBody.addEventListener("click", (e) => {
+    const chip = e.target.closest(".search-chip");
+    if (chip) {
+      if (chip.dataset.term) {
+        searchOverlayInput.value = chip.dataset.term;
+        searchTerm = chip.dataset.term;
+        renderSearchOverlay();
+        renderGrid();
+        searchOverlayInput.focus();
+      } else if (chip.dataset.cat) {
+        activeCategory = chip.dataset.cat;
+        renderCategories();
+        renderGrid();
+        closeSearchOverlay();
+      }
+      return;
+    }
+
+    const clearRecentBtn = e.target.closest("#clearRecentSearches");
+    if (clearRecentBtn) {
+      recentSearches = [];
+      saveRecentSearches();
+      renderSearchOverlay();
+      return;
+    }
+
+    const addBtn = e.target.closest("[data-action='add']");
+    if (addBtn) {
+      e.stopPropagation();
+      addToCart(addBtn.dataset.id);
+      renderSearchOverlay();
+      return;
+    }
+
+    const decBtn = e.target.closest("[data-action='dec']");
+    if (decBtn) {
+      e.stopPropagation();
+      const row = decBtn.closest("[data-id]");
+      setQty(row.dataset.id, (cart[row.dataset.id] || 0) - 1);
+      renderSearchOverlay();
+      return;
+    }
+
+    const incBtn = e.target.closest("[data-action='inc']");
+    if (incBtn) {
+      e.stopPropagation();
+      const row = incBtn.closest("[data-id]");
+      setQty(row.dataset.id, (cart[row.dataset.id] || 0) + 1);
+      renderSearchOverlay();
+      return;
+    }
+
+    const row = e.target.closest(".search-result-row");
+    if (row) {
+      addRecentSearch(searchOverlayInput.value);
+      closeSearchOverlay();
+      openDetail(row.dataset.openId);
+    }
+  });
+
+  /* --------------------------------------------------------------------
+     7. BANNER CAROUSEL — real sliding track, swipeable + draggable,
+        with clickable dots and autoplay (local data, no network calls)
+     -------------------------------------------------------------------- */
+  const bannerViewport = document.getElementById("bannerViewport");
+  const bannerTrack = document.getElementById("bannerTrack");
+  const bannerDots = document.getElementById("bannerDots");
+
+  let bannerIndex = 0;
+  let bannerAutoplayTimer = null;
+  let bannerDrag = null; // { startX, startTranslate, width, moved }
+
+function renderBannerSlides() {
+  bannerTrack.innerHTML = BANNERS.map((banner, i) => `
+    <div
+      class="banner-slide"
+      data-category="${banner.category || ""}"
+      style="
+        background-image:
+          linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.25)),
+          url('${banner.image}');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      "
+    >
+      ${banner.offerText ? `<span class="banner-offer-badge">${escapeHtml(banner.offerText)}</span>` : ""}
+      <div class="banner-content">
+        <p class="banner-eyebrow">${escapeHtml(banner.eyebrow)}</p>
+        <h1>${escapeHtml(banner.title)}</h1>
+        <p>${escapeHtml(banner.subtitle)}</p>
+        ${banner.buttonText ? `<button type="button" class="banner-cta" data-index="${i}">${escapeHtml(banner.buttonText)}</button>` : ""}
+      </div>
+    </div>
+  `).join("");
+
+  bannerTrack.querySelectorAll(".banner-cta").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const banner = BANNERS[Number(btn.dataset.index)];
+      if (banner && banner.category) {
+        activeCategory = banner.category;
+        renderCategories();
+        renderGrid();
+        document.getElementById("menuGrid").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
+
+  bannerDots.innerHTML = BANNERS.map((_, i) => `
+    <button
+      type="button"
+      class="dot ${i === 0 ? "active" : ""}"
+      data-index="${i}"
+      aria-label="Go to banner ${i + 1}"
+    ></button>
+  `).join("");
+
+  bannerDots.querySelectorAll(".dot").forEach((dot) => {
+    dot.addEventListener("click", () => {
+      goToBanner(Number(dot.dataset.index), true);
+      restartBannerAutoplay();
+    });
+  });
 }
 
-.splash-tagline {
-  margin: 6px 0 16px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--accent);
-  opacity: 0.9;
-}
-
-.splash-credit {
-  margin: 20px 0 0;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--ink-faint);
-  letter-spacing: 0.3px;
-  opacity: 0;
-  transform: translateY(8px);
-  animation: splashCreditEnter 0.6s var(--ease) 0.35s forwards;
-}
-
-.splash-credit span {
-  color: var(--accent);
-  font-weight: 700;
-  text-shadow: 0 0 0 rgba(230, 50, 50, 0);
-  animation: nameGlow 1.8s ease-in-out 1s infinite alternate;
-}
-
-@keyframes splashCreditEnter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ==========================================================================
-   Header actions (table badge + settings)
-   ========================================================================== */
-.header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-.icon-btn {
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--ink-soft);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s var(--ease);
-}
-
-.icon-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-.icon-btn:active { transform: scale(0.92); }
-
-/* ==========================================================================
-   Favorite (heart) button — on food cards and detail sheet
-   ========================================================================== */
-.fav-btn {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--ink-faint);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.15s var(--ease), color 0.15s ease;
-}
-
-.fav-btn svg { width: 15px; height: 15px; }
-.fav-btn:active { transform: scale(0.85); }
-.fav-btn.is-fav { color: var(--accent); }
-.fav-btn.is-fav svg { fill: var(--accent); }
-
-.detail-media .fav-btn {
-  top: 14px;
-  left: 14px;
-  right: auto;
-  width: 38px;
-  height: 38px;
-}
-.detail-media .fav-btn svg { width: 19px; height: 19px; }
-
-/* ==========================================================================
-   Recently viewed strip
-   ========================================================================== */
-.recently-viewed { padding-top: 4px; }
-
-.recently-viewed-track {
-  display: flex;
-  gap: 12px;
-  padding: 4px 5% 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.recently-viewed-track::-webkit-scrollbar { display: none; }
-
-.recently-viewed-card {
-  flex-shrink: 0;
-  width: 120px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-m);
-  overflow: hidden;
-  text-align: left;
-}
-
-.recently-viewed-card__img { width: 100%; height: 80px; background: var(--accent-soft); overflow: hidden; }
-.recently-viewed-card__img img, .recently-viewed-card__img svg { width: 100%; height: 100%; object-fit: cover; }
-.recently-viewed-card__name {
-  font-size: 12px;
-  font-weight: 600;
-  margin: 0;
-  padding: 8px 9px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.3;
-}
-
-/* ==========================================================================
-   Settings sheet
-   ========================================================================== */
-.settings-list { padding: 4px 22px 24px; display: flex; flex-direction: column; gap: 4px; }
-
-.settings-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 4px;
-  border-bottom: 1px solid var(--border);
-  border: none;
-  background: none;
-  color: inherit;
-  text-align: left;
-  width: 100%;
-}
-
-.settings-row--action { color: var(--ink); cursor: pointer; }
-.settings-row--action:hover { color: var(--accent); }
-.settings-row--action svg { color: var(--ink-faint); flex-shrink: 0; }
-.settings-row--action:hover svg { color: var(--accent); }
-
-.settings-row__label { font-size: 14.5px; font-weight: 600; margin: 0 0 2px; }
-.settings-row__desc { font-size: 12px; color: var(--ink-soft); margin: 0; }
-
-.settings-about { padding: 16px 4px 4px; }
-.settings-about .settings-row__desc { margin-top: 6px; line-height: 1.5; }
-
-.switch {
-  width: 46px;
-  height: 26px;
-  flex-shrink: 0;
-  border: none;
-  border-radius: 999px;
-  background: var(--border-strong);
-  position: relative;
-  transition: background 0.2s ease;
-}
-
-.switch__knob {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.2s var(--ease);
-}
-
-.switch[aria-checked="true"] { background: var(--accent); }
-.switch[aria-checked="true"] .switch__knob { transform: translateX(20px); }
-
-/* ==========================================================================
-   Small confirm dialog (e.g. clear cart)
-   ========================================================================== */
-.sheet--small { max-width: 380px; }
-
-.confirm-dialog { padding: 10px 24px 26px; text-align: center; }
-.confirm-dialog__title { font-size: 18px; font-weight: 700; margin: 6px 0 8px; }
-.confirm-dialog__desc { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; line-height: 1.5; }
-.confirm-dialog__actions { display: flex; gap: 10px; }
-.confirm-dialog__actions button { flex: 1; }
-
-/* ==========================================================================
-   Food image fallback wrapper (JS-inserted when a JPG fails to load)
-   ========================================================================== */
-.food-image-fallback { display: block; }
-.food-image-fallback svg { width: 100%; height: 100%; display: block; }
-
-/* ==========================================================================
-   Premium card additions — badges, discount pricing, meta, image skeleton.
-   All conditional: they render only when an item supplies the optional
-   field (popular/trending/special/new/originalPrice/discount/prepTime/
-   spiceLevel), so existing items are unaffected.
-   ========================================================================== */
-.food-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
-
-.food-badge {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  padding: 3px 7px;
-  border-radius: 5px;
-  line-height: 1.4;
-}
-
-.food-badge--popular { background: #fff4e0; color: var(--warning); }
-.food-badge--trending { background: var(--accent-soft); color: var(--accent); }
-.food-badge--special { background: #eee6ff; color: #6b3fd4; }
-.food-badge--new { background: #e4f7ec; color: var(--success); }
-
-.food-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-soft); margin: 0 0 6px; }
-.food-meta__prep { display: inline-flex; align-items: center; gap: 3px; }
-.food-meta__spice { letter-spacing: 1px; }
-
-.food-price-row { display: flex; align-items: baseline; gap: 6px; margin: 0 0 6px; flex-wrap: wrap; }
-.food-price-row .food-price { margin: 0; }
-.food-price--original { font-size: 12.5px; color: var(--ink-faint); text-decoration: line-through; }
-.discount-badge { font-size: 10.5px; font-weight: 700; color: var(--success); background: #e4f7ec; padding: 2px 6px; border-radius: 5px; }
-
-.image-discount-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 700;
-  padding: 3px 6px;
-  border-radius: 5px;
-  z-index: 2;
-  box-shadow: var(--shadow-sm);
-}
-
-/* Skeleton shimmer shown behind a food image until it loads */
-.food-image { position: relative; }
-
-.food-image.is-loading::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, var(--border) 30%, var(--border-strong) 50%, var(--border) 70%);
-  background-size: 200% 100%;
-  animation: skeleton-sweep 1.3s ease-in-out infinite;
-}
-
-@keyframes skeleton-sweep {
-  from { background-position: 150% 0; }
-  to { background-position: -50% 0; }
-}
-
-.food-image img { opacity: 0; transition: opacity 0.35s var(--ease); }
-.food-image img.is-loaded { opacity: 1; }
-
-.food-card:hover .food-image img { transform: scale(1.05); }
-.food-image img { transition: opacity 0.35s var(--ease), transform 0.35s var(--ease); }
-
-.icon-btn--sm { width: 34px; height: 34px; }
-
-#detailBadges .food-badges { margin: 4px 0 0; }
-#detailMeta .food-meta { margin: 8px 0 0; font-size: 12.5px; }
-#detailMeta .food-price-row { margin: 8px 0 0; }
-
-.detail-media { position: relative; cursor: zoom-in; }
-
-.image-preview-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: rgba(0, 0, 0, 0.92);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-
-.image-preview-overlay.is-open { opacity: 1; pointer-events: auto; }
-.image-preview-overlay img { max-width: 92vw; max-height: 85vh; object-fit: contain; border-radius: var(--radius-s); }
-
-.image-preview-overlay__close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  width: 42px;
-  height: 42px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ==========================================================================
-   Budget filter chips
-   ========================================================================== */
-.budget-filter {
-  display: flex;
-  gap: 8px;
-  padding: 0 5% 14px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: var(--surface);
-}
-.budget-filter::-webkit-scrollbar { display: none; }
-
-.budget-chip {
-  flex-shrink: 0;
-  padding: 8px 14px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--ink-soft);
-  transition: all 0.15s var(--ease);
-}
-
-.budget-chip.is-active { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-/* ==========================================================================
-   Cart recommendations — "You may also like"
-   ========================================================================== */
-.cart-recommendations { padding: 14px 0 2px; border-top: 1px solid var(--border); margin-top: 6px; }
-.cart-recommendations__track { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-.cart-recommendations__track::-webkit-scrollbar { display: none; }
-
-.cart-rec-card {
-  flex-shrink: 0;
-  width: 108px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-s);
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.cart-rec-card__img { width: 100%; height: 72px; background: var(--accent-soft); position: relative; }
-.cart-rec-card__img img, .cart-rec-card__img svg, .cart-rec-card__img .food-image-fallback { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cart-rec-card__name { font-size: 11px; font-weight: 600; margin: 0; padding: 6px 7px 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
-.cart-rec-card__price { font-size: 11px; font-weight: 700; color: var(--price); margin: 0; padding: 0 7px; }
-.cart-rec-card__add {
-  width: calc(100% - 12px);
-  margin: 6px 6px 6px;
-  border: none;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 6px 0;
-  border-radius: 7px;
-}
-.cart-rec-card__add:active { transform: scale(0.94); }
-
-/* ==========================================================================
-   Dark mode — same accent, dark surfaces. Toggled via [data-theme="dark"]
-   on <html>, stored in localStorage.
-   ========================================================================== */
-[data-theme="dark"] {
-  --bg: #121212;
-  --surface: #1c1c1c;
-  --surface-elevated: #232323;
-  --ink: #f2f2f2;
-  --ink-soft: #b3b3b3;
-  --ink-faint: #7a7a7a;
-  --border: #2c2c2c;
-  --border-strong: #3a3a3a;
-  --accent-soft: #3a1f1f;
-  --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.45);
-}
-
-[data-theme="dark"] .splash-screen { background: #121212; }
-[data-theme="dark"] .food-image { background: #262626; }
-[data-theme="dark"] .cart-summary,
-[data-theme="dark"] .checkout-meta__item,
-[data-theme="dark"] .confirm-order-id,
-[data-theme="dark"] .footer-info__row,
-[data-theme="dark"] .recently-viewed-card__img { background: #232323; }
-[data-theme="dark"] .fav-btn { background: rgba(28, 28, 28, 0.85); }
-[data-theme="dark"] .confirm-check { background: #1e2f22; }
-
-/* ==========================================================================
-   Full-page search (Zomato-style) — opens over everything, own scroll
-   ========================================================================== */
-.search-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  opacity: 0;
-  transform: translateY(14px);
-  pointer-events: none;
-  transition: opacity 0.22s var(--ease), transform 0.26s var(--ease);
-}
-
-.search-overlay.is-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
-
-.search-overlay__bar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 5%;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-.search-overlay__back {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border: none;
-  background: none;
-  color: var(--ink);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.search-overlay__back:hover { background: var(--accent-soft); color: var(--accent); }
-
-.search-overlay__input-wrap { flex: 1; position: relative; }
-
-.search-overlay__input-wrap input {
-  width: 100%;
-  height: 46px;
-  border: 1px solid var(--border-strong);
-  background: var(--bg);
-  border-radius: var(--radius-s);
-  padding: 0 40px 0 42px;
-  font-size: 14.5px;
-  color: var(--ink);
-  outline: none;
-  transition: border-color 0.2s var(--ease);
-}
-
-.search-overlay__input-wrap input:focus { border-color: var(--accent); }
-.search-overlay__input-wrap input::placeholder { color: var(--ink-faint); }
-.search-overlay__input-wrap .search-icon { left: 14px; font-size: 17px; }
-.search-overlay__input-wrap .search-clear { right: 4px; }
-
-.search-overlay__body { flex: 1; overflow-y: auto; padding: 18px 5% 40px; -webkit-overflow-scrolling: touch; }
-
-.search-section { margin-bottom: 22px; }
-.search-section__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.search-section__head span { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
-.search-section__head button { border: none; background: none; color: var(--accent); font-size: 12.5px; font-weight: 600; }
-
-.search-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.search-chip {
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 9px 15px;
-  border-radius: 999px;
-  transition: all 0.15s var(--ease);
-}
-
-.search-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-
-.search-results { display: flex; flex-direction: column; gap: 4px; }
-
-.search-result-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  animation: search-row-in 0.28s var(--ease) both;
-}
-
-@keyframes search-row-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.search-result-row__img { width: 58px; height: 58px; flex-shrink: 0; border-radius: var(--radius-s); overflow: hidden; background: var(--accent-soft); position: relative; }
-.search-result-row__img img, .search-result-row__img svg, .search-result-row__img .food-image-fallback { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-.search-result-row__info { flex: 1; min-width: 0; }
-.search-result-row__name { font-size: 14px; font-weight: 600; margin: 0 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.search-result-row__desc { font-size: 12px; color: var(--ink-soft); margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.search-result-row__price { font-size: 13.5px; font-weight: 700; color: var(--price); margin: 0; }
-
-.search-result-row__action { flex-shrink: 0; }
-
-.search-add-btn {
-  width: 34px;
-  height: 34px;
-  border: 1.5px solid var(--accent);
-  background: var(--surface);
-  color: var(--accent);
-  font-size: 19px;
-  font-weight: 500;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s var(--ease);
-}
-
-.search-add-btn:active { transform: scale(0.85); }
-.search-add-btn:disabled { border-color: var(--border-strong); color: var(--ink-faint); }
-
-.search-qty {
-  display: flex;
-  align-items: center;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 10px;
-  padding: 2px;
-}
-
-.search-qty button { width: 26px; height: 26px; border: none; background: transparent; color: #fff; font-size: 15px; display: flex; align-items: center; justify-content: center; }
-.search-qty span { min-width: 16px; text-align: center; font-weight: 700; font-size: 12px; transition: transform 0.15s var(--ease); }
-
-/* ==========================================================================
-   Small polish animations
-   ========================================================================== */
-.fav-btn svg { transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.fav-btn.is-fav svg { animation: fav-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
-
-@keyframes fav-pop {
-  0% { transform: scale(0.7); }
-  60% { transform: scale(1.25); }
-  100% { transform: scale(1); }
-}
-
-.cart-count-badge { transition: transform 0.2s var(--ease); }
-.cart-count-badge.pulse { animation: badge-pulse 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
-
-@keyframes badge-pulse {
-  0% { transform: scale(1); }
-  45% { transform: scale(1.3); }
-  100% { transform: scale(1); }
-}
-
-@media (max-width: 700px) {
-  .search-overlay__body { padding-left: 15px; padding-right: 15px; }
-  .search-overlay__bar { padding-left: 15px; padding-right: 15px; }
-}
+    
+
+  function goToBanner(index, animate) {
+    bannerIndex = ((index % BANNERS.length) + BANNERS.length) % BANNERS.length;
+    bannerTrack.classList.toggle("is-snapping", animate !== false);
+    bannerTrack.style.transform = `translateX(-${bannerIndex * 100}%)`;
+    bannerDots.querySelectorAll(".dot").forEach((dot, i) => {
+      dot.classList.toggle("active", i === bannerIndex);
+    });
+  }
+
+  function restartBannerAutoplay() {
+    clearInterval(bannerAutoplayTimer);
+    if (BANNERS.length <= 1) return;
+    bannerAutoplayTimer = setInterval(() => {
+      goToBanner(bannerIndex + 1);
+    }, 5000);
+  }
+
+  /* Drag / swipe — Pointer Events cover touch, mouse, and pen in one API.
+     While dragging, the track follows the pointer 1:1 with no transition
+     (feels immediate); on release it snaps to whichever slide is nearest,
+     eased in, matching the Zomato/Swiggy-style banner feel. */
+  bannerViewport.addEventListener("pointerdown", (e) => {
+    if (BANNERS.length <= 1) return;
+    if (e.target.closest(".dot")) return; // let dot buttons handle their own click, undisturbed
+    bannerDrag = {
+      startX: e.clientX,
+      startTranslate: -bannerIndex * bannerViewport.offsetWidth,
+      width: bannerViewport.offsetWidth,
+      moved: false
+    };
+    bannerTrack.classList.remove("is-snapping");
+    bannerViewport.classList.add("is-dragging");
+    bannerViewport.setPointerCapture(e.pointerId);
+    clearInterval(bannerAutoplayTimer);
+  });
+
+  bannerViewport.addEventListener("pointermove", (e) => {
+    if (!bannerDrag) return;
+    const delta = e.clientX - bannerDrag.startX;
+    if (Math.abs(delta) > 4) bannerDrag.moved = true;
+    bannerTrack.style.transform = `translateX(${bannerDrag.startTranslate + delta}px)`;
+  });
+
+  function endBannerDrag(e) {
+    if (!bannerDrag) return;
+    const delta = e.clientX - bannerDrag.startX;
+    const threshold = bannerDrag.width * 0.18;
+
+    if (delta <= -threshold) {
+      goToBanner(bannerIndex + 1);
+    } else if (delta >= threshold) {
+      goToBanner(bannerIndex - 1);
+    } else {
+      goToBanner(bannerIndex); // snap back to the same slide
+    }
+
+    bannerViewport.classList.remove("is-dragging");
+    bannerDrag = null;
+    restartBannerAutoplay();
+  }
+
+  bannerViewport.addEventListener("pointerup", endBannerDrag);
+  bannerViewport.addEventListener("pointercancel", endBannerDrag);
+
+  // Keep the current slide aligned if the viewport is resized (orientation change etc.)
+  window.addEventListener("resize", () => goToBanner(bannerIndex, false));
+
+  /* --------------------------------------------------------------------
+     8. FLOATING SORT BUTTON + MENU
+     -------------------------------------------------------------------- */
+  const sortMenu = document.getElementById("sortMenu");
+  const floatingSortBtn = document.getElementById("floatingSortBtn");
+
+  floatingSortBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    sortMenu.classList.toggle("show");
+  });
+
+  sortMenu.querySelectorAll("button[data-sort]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      activeSort = btn.dataset.sort;
+      sortMenu.querySelectorAll("button[data-sort]").forEach((b) =>
+        b.classList.toggle("is-active", b.dataset.sort === activeSort)
+      );
+      renderGrid();
+      sortMenu.classList.remove("show");
+    });
+  });
+
+  document.addEventListener("click", () => sortMenu.classList.remove("show"));
+
+  /* --------------------------------------------------------------------
+     9. FOOD DETAIL SHEET
+     -------------------------------------------------------------------- */
+  const detailBackdrop = document.getElementById("detailBackdrop");
+  const detailSheet = document.getElementById("detailSheet");
+  let detailQty = 1;
+
+  function openDetail(id) {
+    activeDetailItem = findItem(id);
+    if (!activeDetailItem) return;
+    detailQty = 1;
+    renderDetail();
+    openSheet(detailBackdrop, detailSheet);
+    addRecentlyViewed(activeDetailItem.id);
+  }
+
+  function renderDetail() {
+    const item = activeDetailItem;
+    if (!item) return;
+    const vegClass = item.type === "veg" ? "" : "nonveg";
+    const vegLabel = item.type === "veg" ? "Veg" : "Non-Veg";
+    const imgSrc = foodImagePath(item);
+
+    document.getElementById("detailMedia").innerHTML = `
+      <img
+        src="${imgSrc}"
+        alt="${escapeHtml(item.name)}"
+        style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"
+        onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+      >
+      <button type="button" class="fav-btn ${isFavorite(item.id) ? "is-fav" : ""}" data-action="fav" data-id="${item.id}" aria-label="${isFavorite(item.id) ? "Remove from favorites" : "Add to favorites"}">
+        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="${isFavorite(item.id) ? "currentColor" : "none"}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+    `;
+    document.getElementById("detailMedia").querySelector("[data-action='fav']").addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleFavorite(item.id);
+    });
+    document.getElementById("detailMedia").addEventListener("click", (e) => {
+      if (e.target.closest("[data-action='fav']")) return;
+      openImagePreview(imgSrc, item.name);
+    });
+
+    document.getElementById("detailVegMark").className = `food-mark ${vegClass}`;
+    document.getElementById("detailVegLabel").textContent = vegLabel;
+    document.getElementById("detailName").textContent = item.name;
+    document.getElementById("detailDesc").textContent = item.description;
+    document.getElementById("detailQty").textContent = detailQty;
+
+    // Optional premium fields — badges, prep time, spice level, discount
+    const badges = [];
+    if (item.popular) badges.push(`<span class="food-badge food-badge--popular">Popular</span>`);
+    if (item.trending) badges.push(`<span class="food-badge food-badge--trending">Trending</span>`);
+    if (item.special) badges.push(`<span class="food-badge food-badge--special">Special</span>`);
+    if (item.new) badges.push(`<span class="food-badge food-badge--new">New</span>`);
+    document.getElementById("detailBadges").innerHTML = badges.length ? `<div class="food-badges">${badges.join("")}</div>` : "";
+
+    const metaBits = [];
+    if (item.prepTime) metaBits.push(`<span class="food-meta__prep">⏱ ${escapeHtml(item.prepTime)}</span>`);
+    if (item.spiceLevel) metaBits.push(`<span class="food-meta__spice">${"🌶".repeat(Math.min(item.spiceLevel, 3))}</span>`);
+    if (Array.isArray(item.ingredients) && item.ingredients.length) {
+      metaBits.push(`<span>Ingredients: ${escapeHtml(item.ingredients.join(", "))}</span>`);
+    }
+    if (Array.isArray(item.allergens) && item.allergens.length) {
+      metaBits.push(`<span>Allergens: ${escapeHtml(item.allergens.join(", "))}</span>`);
+    }
+    document.getElementById("detailMeta").innerHTML = metaBits.length
+      ? `<div class="food-meta" style="flex-wrap:wrap;">${metaBits.join("")}</div>` : "";
+
+    const hasDiscount = item.originalPrice && item.originalPrice > item.price;
+
+    const availNote = document.getElementById("detailUnavailableNote");
+    const addBtn = document.getElementById("detailAddBtn");
+    const qtyBox = document.getElementById("detailQtyBox");
+    const priceEl = document.getElementById("detailPrice");
+
+    if (hasDiscount) {
+      const discountPct = Math.round((1 - item.price / item.originalPrice) * 100);
+      priceEl.innerHTML = `₹${item.price} <span class="food-price--original" style="margin-left:6px;">₹${item.originalPrice}</span> <span class="discount-badge">${discountPct}% OFF</span>`;
+    } else {
+      priceEl.textContent = `₹${item.price}`;
+    }
+
+    if (item.available) {
+      availNote.style.display = "none";
+      addBtn.disabled = false;
+      addBtn.textContent = `Add to Cart • ₹${item.price * detailQty}`;
+      qtyBox.style.display = "flex";
+    } else {
+      availNote.style.display = "block";
+      addBtn.disabled = true;
+      addBtn.textContent = "Out of Stock";
+      qtyBox.style.display = "none";
+    }
+  }
+
+  /* --------------------------------------------------------------------
+     4c. FULLSCREEN IMAGE PREVIEW
+     -------------------------------------------------------------------- */
+  const imagePreviewOverlay = document.getElementById("imagePreviewOverlay");
+  const imagePreviewImg = document.getElementById("imagePreviewImg");
+  const imagePreviewClose = document.getElementById("imagePreviewClose");
+
+  function openImagePreview(src, alt) {
+    if (!imagePreviewOverlay) return;
+    imagePreviewImg.src = src;
+    imagePreviewImg.alt = alt || "";
+    imagePreviewOverlay.classList.add("is-open");
+  }
+
+  function closeImagePreview() {
+    if (imagePreviewOverlay) imagePreviewOverlay.classList.remove("is-open");
+  }
+
+  if (imagePreviewClose) imagePreviewClose.addEventListener("click", closeImagePreview);
+  if (imagePreviewOverlay) {
+    imagePreviewOverlay.addEventListener("click", (e) => {
+      if (e.target === imagePreviewOverlay) closeImagePreview();
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     4d. SHARE DISH — Web Share API with clipboard fallback; also
+         supports opening a shared link directly via ?dish=ID
+     -------------------------------------------------------------------- */
+  function shareDish(item) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("dish", item.id);
+    const shareData = { title: item.name, text: item.description, url: url.toString() };
+    if (navigator.share) {
+      navigator.share(shareData).catch(() => {});
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url.toString())
+        .then(() => showToast("Link copied"))
+        .catch(() => showToast("Couldn't copy the link"));
+    } else {
+      showToast("Couldn't copy the link");
+    }
+  }
+
+  const detailShareBtn = document.getElementById("detailShareBtn");
+  if (detailShareBtn) {
+    detailShareBtn.addEventListener("click", () => {
+      if (activeDetailItem) shareDish(activeDetailItem);
+    });
+  }
+
+  document.getElementById("detailQtyInc").addEventListener("click", () => {
+    detailQty += 1;
+    renderDetail();
+  });
+  document.getElementById("detailQtyDec").addEventListener("click", () => {
+    if (detailQty > 1) detailQty -= 1;
+    renderDetail();
+  });
+  document.getElementById("detailAddBtn").addEventListener("click", () => {
+    if (!activeDetailItem || !activeDetailItem.available) return;
+    addToCart(activeDetailItem.id, detailQty);
+    closeSheet(detailBackdrop, detailSheet);
+  });
+
+  /* --------------------------------------------------------------------
+     10. CART SHEET
+     -------------------------------------------------------------------- */
+  const cartBackdrop = document.getElementById("cartBackdrop");
+  const cartSheet = document.getElementById("cartSheet");
+  let cartSheetOpen = false;
+
+  function renderCartSheet() {
+    const entries = cartEntries();
+    const listEl = document.getElementById("cartList");
+    const summaryEl = document.getElementById("cartSummary");
+
+    if (entries.length === 0) {
+      listEl.innerHTML = `
+        <div class="cart-empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <strong style="display:block;font-size:16px;color:var(--ink);margin-bottom:4px;">Your cart is empty</strong>
+          <p>Add a few dishes to get started.</p>
+        </div>`;
+      summaryEl.style.display = "none";
+      const recWrap = document.getElementById("cartRecommendations");
+      if (recWrap) recWrap.style.display = "none";
+      return;
+    }
+
+    listEl.innerHTML = entries.map(({ item, qty }) => `
+      <div class="cart-row" data-id="${item.id}">
+        <div class="cart-row__icon">
+          <img
+            src="${foodImagePath(item)}"
+            alt="${escapeHtml(item.name)}"
+            style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <div class="cart-row__info">
+          <p class="cart-row__name">${escapeHtml(item.name)}</p>
+          <p class="cart-row__price">₹${item.price} × ${qty} = ₹${item.price * qty}</p>
+        </div>
+        <div class="quantity" data-id="${item.id}" style="position:static;background:var(--accent-soft);">
+          <button type="button" data-action="dec" aria-label="Decrease quantity" style="color:var(--accent);">−</button>
+          <span style="color:var(--accent);">${qty}</span>
+          <button type="button" data-action="inc" aria-label="Increase quantity" style="color:var(--accent);">+</button>
+        </div>
+        <button class="cart-row__remove" data-action="remove" data-id="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    `).join("");
+
+    listEl.querySelectorAll(".quantity").forEach((stepper) => {
+      const id = stepper.dataset.id;
+      stepper.querySelector("[data-action='inc']").addEventListener("click", () => setQty(id, (cart[id] || 0) + 1));
+      stepper.querySelector("[data-action='dec']").addEventListener("click", () => setQty(id, (cart[id] || 0) - 1));
+    });
+    listEl.querySelectorAll("[data-action='remove']").forEach((btn) => {
+      btn.addEventListener("click", () => setQty(btn.dataset.id, 0));
+    });
+
+    summaryEl.style.display = "block";
+    document.getElementById("cartSubtotal").textContent = `₹${cartTotalPrice()}`;
+    document.getElementById("cartTotal").textContent = `₹${cartTotalPrice()}`;
+    renderCartRecommendations();
+  }
+
+  // "You may also like" — a few available, not-already-in-cart dishes,
+  // preferring the same categories as what's already in the cart. This is
+  // a generic recommender since MENU_ITEMS doesn't define explicit
+  // recommendedWith relationships; add that field to items to make specific
+  // pairings (e.g. Biryani → Raita) take over here later.
+  function renderCartRecommendations() {
+    const wrap = document.getElementById("cartRecommendations");
+    const track = document.getElementById("cartRecommendationsTrack");
+    if (!wrap || !track) return;
+
+    const cartCategories = new Set(cartEntries().map((e) => e.item.category));
+    const candidates = MENU_ITEMS.filter((item) => item.available && !cart[item.id]);
+    const sameCategory = candidates.filter((item) => cartCategories.has(item.category));
+    const rest = candidates.filter((item) => !cartCategories.has(item.category));
+    const picks = sameCategory.concat(rest).slice(0, 4);
+
+    if (picks.length === 0) {
+      wrap.style.display = "none";
+      return;
+    }
+
+    wrap.style.display = "block";
+    track.innerHTML = picks.map((item) => `
+      <div class="cart-rec-card">
+        <div class="cart-rec-card__img">
+          <img
+            src="${foodImagePath(item)}"
+            alt="${escapeHtml(item.name)}"
+            loading="lazy"
+            onerror="this.onerror=null; window.__foodImageFallback(this, '${item.icon || "bowl"}');"
+          >
+        </div>
+        <p class="cart-rec-card__name">${escapeHtml(item.name)}</p>
+        <p class="cart-rec-card__price">₹${item.price}</p>
+        <button type="button" class="cart-rec-card__add" data-action="add-rec" data-id="${item.id}">+ Add</button>
+      </div>
+    `).join("");
+
+    track.querySelectorAll("[data-action='add-rec']").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        addToCart(btn.dataset.id);
+      });
+    });
+  }
+
+  document.getElementById("cartBar").addEventListener("click", () => {
+    cartSheetOpen = true;
+    renderCartSheet();
+    openSheet(cartBackdrop, cartSheet);
+  });
+
+  document.getElementById("goToCheckoutBtn").addEventListener("click", () => {
+    if (cartTotalCount() === 0) return;
+    closeSheet(cartBackdrop, cartSheet);
+    setTimeout(openCheckout, 260);
+  });
+
+  /* --------------------------------------------------------------------
+     10b. CLEAR CART — custom confirmation sheet, no browser alert()
+     -------------------------------------------------------------------- */
+  const clearCartBackdrop = document.getElementById("clearCartBackdrop");
+  const clearCartSheet = document.getElementById("clearCartSheet");
+
+  function openClearCartConfirm() {
+    if (cartTotalCount() === 0) {
+      showToast("Your cart is already empty");
+      return;
+    }
+    openSheet(clearCartBackdrop, clearCartSheet);
+  }
+
+  const clearCartBtnEl = document.getElementById("clearCartBtn");
+  if (clearCartBtnEl) clearCartBtnEl.addEventListener("click", openClearCartConfirm);
+
+  const clearCartCancelBtn = document.getElementById("clearCartCancelBtn");
+  if (clearCartCancelBtn) {
+    clearCartCancelBtn.addEventListener("click", () => closeSheet(clearCartBackdrop, clearCartSheet));
+  }
+
+  const clearCartConfirmBtn = document.getElementById("clearCartConfirmBtn");
+  if (clearCartConfirmBtn) {
+    clearCartConfirmBtn.addEventListener("click", () => {
+      cart = {};
+      saveCart();
+      renderAll();
+      closeSheet(clearCartBackdrop, clearCartSheet);
+      showToast("Cart cleared");
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     11. CHECKOUT SHEET (demo only — no real backend/order system)
+     -------------------------------------------------------------------- */
+  const checkoutBackdrop = document.getElementById("checkoutBackdrop");
+  const checkoutSheet = document.getElementById("checkoutSheet");
+
+  function openCheckout() {
+    document.getElementById("checkoutTable").textContent = tableDisplayName();
+    const entries = cartEntries();
+    document.getElementById("checkoutItems").innerHTML = entries.map(({ item, qty }) => `
+      <div class="summary-line">
+        <span>${escapeHtml(item.name)} × ${qty}</span>
+        <span>₹${item.price * qty}</span>
+      </div>
+    `).join("");
+    document.getElementById("checkoutTotal").textContent = `₹${cartTotalPrice()}`;
+    openSheet(checkoutBackdrop, checkoutSheet);
+  }
+
+  document.getElementById("placeOrderBtn").addEventListener("click", () => {
+    if (cartTotalCount() === 0) {
+      showToast("Your cart is empty");
+      return;
+    }
+    const name = document.getElementById("customerName").value.trim();
+    const notes = document.getElementById("specialInstructions").value.trim();
+    const orderId = "ORD" + Math.floor(1000 + Math.random() * 9000);
+
+    document.getElementById("confirmTable").textContent = tableDisplayName();
+    document.getElementById("confirmOrderId").textContent = `#${orderId}`;
+    document.getElementById("confirmName").textContent = name
+      ? `Thanks, ${name}! Your demo order has been recorded locally.`
+      : "Your demo order has been recorded locally.";
+    void notes; // demo only — not persisted anywhere beyond this screen
+
+    closeSheet(checkoutBackdrop, checkoutSheet);
+    setTimeout(() => {
+      cart = {};
+      saveCart();
+      renderAll();
+      document.getElementById("customerName").value = "";
+      document.getElementById("specialInstructions").value = "";
+      openSheet(confirmBackdrop, confirmSheet);
+    }, 260);
+  });
+
+  /* --------------------------------------------------------------------
+     12. CONFIRMATION SHEET
+     -------------------------------------------------------------------- */
+  const confirmBackdrop = document.getElementById("confirmBackdrop");
+  const confirmSheet = document.getElementById("confirmSheet");
+
+  document.getElementById("confirmDoneBtn").addEventListener("click", () => {
+    closeSheet(confirmBackdrop, confirmSheet);
+  });
+
+  /* --------------------------------------------------------------------
+     13. GENERIC SHEET OPEN/CLOSE + BACKDROP/ESC HANDLING
+     -------------------------------------------------------------------- */
+  function openSheet(backdrop, sheet) {
+    backdrop.classList.add("is-open");
+    sheet.classList.add("is-open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeSheet(backdrop, sheet) {
+    backdrop.classList.remove("is-open");
+    sheet.classList.remove("is-open");
+    if (sheet === cartSheet) cartSheetOpen = false;
+    if (sheet.id === "settingsSheet") settingsSheetOpen = false;
+    const anyOpen = document.querySelectorAll(".sheet.is-open").length > 0;
+    if (!anyOpen) document.body.style.overflow = "";
+  }
+
+  document.querySelectorAll("[data-close]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const sheet = document.getElementById(el.dataset.close);
+      const backdrop = document.getElementById(el.dataset.close.replace("Sheet", "Backdrop"));
+      closeSheet(backdrop, sheet);
+    });
+  });
+
+  document.querySelectorAll(".sheet-backdrop").forEach((bd) => {
+    bd.addEventListener("click", () => {
+      const sheet = document.getElementById(bd.id.replace("Backdrop", "Sheet"));
+      closeSheet(bd, sheet);
+    });
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".sheet.is-open").forEach((sheet) => {
+        const backdrop = document.getElementById(sheet.id.replace("Sheet", "Backdrop"));
+        closeSheet(backdrop, sheet);
+      });
+      sortMenu.classList.remove("show");
+      closeImagePreview();
+    }
+  });
+
+  /* --------------------------------------------------------------------
+     13b. DARK MODE — CSS-variable based, persisted, applied on load
+     -------------------------------------------------------------------- */
+  function loadTheme() {
+    try {
+      return localStorage.getItem(THEME_KEY) || "light";
+    } catch (e) {
+      console.warn("Could not read theme from localStorage:", e);
+      return "light";
+    }
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+    const toggle = document.getElementById("darkModeToggle");
+    if (toggle) toggle.setAttribute("aria-checked", theme === "dark" ? "true" : "false");
+  }
+
+  function saveTheme(theme) {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch (e) {
+      console.warn("Could not save theme to localStorage:", e);
+    }
+  }
+
+  let currentTheme = loadTheme();
+  applyTheme(currentTheme);
+
+  const darkModeToggleEl = document.getElementById("darkModeToggle");
+  if (darkModeToggleEl) {
+    darkModeToggleEl.addEventListener("click", () => {
+      currentTheme = currentTheme === "dark" ? "light" : "dark";
+      applyTheme(currentTheme);
+      saveTheme(currentTheme);
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     13c. SETTINGS SHEET
+     -------------------------------------------------------------------- */
+  const settingsBackdrop = document.getElementById("settingsBackdrop");
+  const settingsSheet = document.getElementById("settingsSheet");
+  let settingsSheetOpen = false;
+
+  function renderSettingsCounts() {
+    const el = document.getElementById("settingsFavoritesCount");
+    if (!el) return;
+    const count = favoritesCount();
+    el.textContent = `${count} saved ${count === 1 ? "dish" : "dishes"}`;
+  }
+
+  const settingsBtnEl = document.getElementById("settingsBtn");
+  if (settingsBtnEl && settingsBackdrop && settingsSheet) {
+    settingsBtnEl.addEventListener("click", () => {
+      settingsSheetOpen = true;
+      renderSettingsCounts();
+      openSheet(settingsBackdrop, settingsSheet);
+    });
+  }
+
+  const settingsFavoritesBtn = document.getElementById("settingsFavoritesBtn");
+  if (settingsFavoritesBtn) {
+    settingsFavoritesBtn.addEventListener("click", () => {
+      activeCategory = "favorites";
+      renderCategories();
+      renderGrid();
+      closeSheet(settingsBackdrop, settingsSheet);
+    });
+  }
+
+  const settingsClearCartBtn = document.getElementById("settingsClearCartBtn");
+  if (settingsClearCartBtn) {
+    settingsClearCartBtn.addEventListener("click", () => {
+      closeSheet(settingsBackdrop, settingsSheet);
+      setTimeout(openClearCartConfirm, 260);
+    });
+  }
+
+  /* --------------------------------------------------------------------
+     13d. SHARE MENU — Web Share API with a clipboard fallback
+     -------------------------------------------------------------------- */
+  function shareMenu() {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: document.title, url }).catch(() => {
+        // user cancelled the share sheet — not an error, nothing to do
+      });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => showToast("Menu link copied"))
+        .catch(() => showToast("Couldn't copy the link"));
+    } else {
+      showToast("Couldn't copy the link");
+    }
+  }
+
+  const settingsShareBtn = document.getElementById("settingsShareBtn");
+  if (settingsShareBtn) settingsShareBtn.addEventListener("click", shareMenu);
+
+  /* --------------------------------------------------------------------
+     14. TOAST
+     -------------------------------------------------------------------- */
+  let toastTimer = null;
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.add("is-visible");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 1600);
+  }
+
+  /* --------------------------------------------------------------------
+     15. QR DOCS FOOTER — build example links relative to current page
+     -------------------------------------------------------------------- */
+
+  /* --------------------------------------------------------------------
+     16. INIT — each step is wrapped so one failure can't cascade and
+         leave the splash screen stuck or the rest of the page unusable.
+     -------------------------------------------------------------------- */
+  safeCall(() => {
+    document.getElementById("restaurantName").textContent = RESTAURANT.name;
+    document.getElementById("restaurantSubtitle").textContent = RESTAURANT.subtitle;
+    document.getElementById("checkoutRestaurant").textContent = RESTAURANT.name;
+    const splashName = document.getElementById("splashRestaurantName");
+    if (splashName) splashName.textContent = RESTAURANT.name;
+  }, "restaurant info");
+
+  safeCall(renderTableBadge, "renderTableBadge");
+  safeCall(buildSearchIndex, "buildSearchIndex");
+  safeCall(syncSearchTrigger, "syncSearchTrigger");
+  safeCall(initFloatingSearch, "floating search bubble");
+  safeCall(renderCategories, "renderCategories");
+  safeCall(renderTypeFilter, "renderTypeFilter");
+  safeCall(renderBudgetFilter, "renderBudgetFilter");
+  safeCall(renderGrid, "renderGrid");
+  safeCall(renderCartBar, "renderCartBar");
+  safeCall(renderRecentlyViewed, "renderRecentlyViewed");
+  safeCall(() => {
+    renderBannerSlides();
+    goToBanner(0, false);
+    restartBannerAutoplay();
+  }, "banner carousel");
+
+  // Sticky header gets a blur/shadow once the page has scrolled a little.
+  safeCall(() => {
+    const headerEl = document.querySelector(".header");
+    if (!headerEl) return;
+    const onScroll = () => headerEl.classList.toggle("is-stuck", window.scrollY > 8);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }, "sticky header");
+
+  // Shareable dish URL: ?dish=123 (table param, if present, is untouched)
+  safeCall(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dishId = params.get("dish");
+    if (dishId && findItem(dishId)) {
+      setTimeout(() => openDetail(dishId), 1200);
+    }
+  }, "deep-linked dish");
+
+  /* ================= SPLASH SCREEN ================= */
+  safeCall(() => {
+    const splashScreen = document.getElementById("splashScreen");
+    const splashTable = document.getElementById("splashTable");
+
+    if (splashScreen) {
+      if (splashTable) splashTable.textContent = tableDisplayName();
+
+      setTimeout(() => {
+        splashScreen.classList.add("hide");
+        setTimeout(() => {
+          if (splashScreen.parentNode) splashScreen.remove();
+        }, 500);
+      }, 1000);
+    }
+  }, "splash screen");
+})();
