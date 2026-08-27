@@ -1744,4 +1744,112 @@ function renderBannerSlides() {
       hideSplash();
     });
   }, "splash screen");
+
+  /* --------------------------------------------------------------------
+     17. PUBLIC API BRIDGE — for external modules (Shivaksh AI concierge)
+         to reuse the existing cart/filter/sheet/search logic instead of
+         building a second system. Every method here just calls a
+         function that's already defined above; nothing new is invented.
+     -------------------------------------------------------------------- */
+  safeCall(() => {
+    window.ShivakshApp = {
+      // data
+      getMenuItems: () => MENU_ITEMS,
+      getCategories: () => CATEGORIES,
+      getRestaurant: () => RESTAURANT,
+      findItem,
+
+      // cart — reuses the real cart, no duplicate system
+      addToCart,
+      setQty,
+      getCartQty: (id) => cart[Number(id)] || 0,
+      getCartEntries: cartEntries,
+      getCartTotalCount: cartTotalCount,
+      getCartTotalPrice: cartTotalPrice,
+      clearCart: () => {
+        cart = {};
+        saveCart();
+        renderAll();
+      },
+
+      // navigation / sheets
+      openDetail,
+      openCartSheet: () => {
+        cartSheetOpen = true;
+        renderCartSheet();
+        openSheet(cartBackdrop, cartSheet);
+      },
+      closeCartSheet: () => closeSheet(cartBackdrop, cartSheet),
+      goToCheckout: () => {
+        if (cartTotalCount() === 0) return false;
+        closeSheet(cartBackdrop, cartSheet);
+        setTimeout(openCheckout, 260);
+        return true;
+      },
+
+      // filters / search / sort — same state the rest of the UI reads
+      setCategory: (catId) => {
+        activeCategory = catId;
+        renderCategories();
+        renderGrid();
+      },
+      setType: (type) => {
+        activeType = type; // "all" | "veg" | "nonveg"
+        renderTypeFilter();
+        renderGrid();
+      },
+      setBudget: (budgetKey) => {
+        // "all" | "0-100" | "100-200" | "200-300" | "300-"
+        activeBudget = budgetKey;
+        renderBudgetFilter();
+        renderGrid();
+      },
+      setSort: (sortKey) => {
+        // "default" | "low" | "high" | "name"
+        activeSort = sortKey;
+        document.querySelectorAll("#sortMenu button[data-sort]").forEach((b) =>
+          b.classList.toggle("is-active", b.dataset.sort === sortKey)
+        );
+        renderGrid();
+      },
+      setSearch: (term) => {
+        searchTerm = term || "";
+        syncSearchTrigger();
+        renderGrid();
+      },
+      clearSearch: () => {
+        searchTerm = "";
+        syncSearchTrigger();
+        renderGrid();
+      },
+      resetFilters: () => {
+        activeCategory = "all";
+        activeType = "all";
+        activeBudget = "all";
+        activeSort = "default";
+        searchTerm = "";
+        renderCategories();
+        renderTypeFilter();
+        renderBudgetFilter();
+        syncSearchTrigger();
+        document.querySelectorAll("#sortMenu button[data-sort]").forEach((b) =>
+          b.classList.toggle("is-active", b.dataset.sort === "default")
+        );
+        renderGrid();
+      },
+      getFilteredItems,
+      getState: () => ({
+        activeCategory,
+        activeType,
+        activeSort,
+        activeBudget,
+        searchTerm,
+        cartCount: cartTotalCount()
+      }),
+
+      // misc
+      showToast,
+      getTableName: tableDisplayName
+    };
+  }, "ShivakshApp API bridge");
 })();

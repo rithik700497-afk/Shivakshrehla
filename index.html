@@ -379,7 +379,53 @@
 <!-- ============================ TOAST ============================ -->
 <div class="toast" id="toast">Added to cart</div>
 
+<!-- ============================ SHIVAKSH AI CONCIERGE ============================ -->
+<button type="button" class="ai-bubble" id="aiBubble" aria-label="Open Shivaksh AI, your food assistant" aria-haspopup="dialog" aria-expanded="false">
+  <span class="ai-bubble__glow" aria-hidden="true"></span>
+  <span class="ai-bubble__icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+      <path d="M12 2.5l1.7 4.9 4.9 1.7-4.9 1.7L12 15.7l-1.7-4.9-4.9-1.7 4.9-1.7L12 2.5z" fill="currentColor"/>
+      <path d="M19 13.5l.85 2.4 2.45.9-2.45.9-.85 2.4-.85-2.4-2.45-.9 2.45-.9.85-2.4z" fill="currentColor" opacity="0.75"/>
+      <path d="M4.5 12.5l.6 1.7 1.7.6-1.7.6-.6 1.7-.6-1.7-1.7-.6 1.7-.6.6-1.7z" fill="currentColor" opacity="0.6"/>
+    </svg>
+  </span>
+</button>
+
+<div class="ai-panel" id="aiPanel" role="dialog" aria-modal="false" aria-label="Shivaksh AI food assistant" data-theme="dark">
+  <div class="ai-panel__header">
+    <div class="ai-panel__header-info">
+      <span class="ai-panel__avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none"><path d="M12 2.5l1.7 4.9 4.9 1.7-4.9 1.7L12 15.7l-1.7-4.9-4.9-1.7 4.9-1.7L12 2.5z" fill="currentColor"/></svg>
+      </span>
+      <div>
+        <p class="ai-panel__title">✨ Shivaksh AI</p>
+        <p class="ai-panel__subtitle">Your personal food assistant</p>
+      </div>
+    </div>
+    <div class="ai-panel__header-actions">
+      <button type="button" class="ai-icon-btn" id="aiThemeToggle" aria-label="Switch to light theme" title="Toggle theme">🌙</button>
+      <button type="button" class="ai-icon-btn" id="aiMinimizeBtn" aria-label="Minimize assistant" title="Minimize">–</button>
+      <button type="button" class="ai-icon-btn" id="aiCloseBtn" aria-label="Close assistant" title="Close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="ai-panel__messages" id="aiMessages" aria-live="polite"></div>
+
+  <div class="ai-panel__chips" id="aiQuickChips"></div>
+
+  <div class="ai-panel__inputbar">
+    <label for="aiInput" class="visually-hidden">Ask Shivaksh AI about the menu</label>
+    <textarea id="aiInput" class="ai-panel__input" rows="1" placeholder="Ask anything about the menu..." aria-label="Message Shivaksh AI"></textarea>
+    <button type="button" class="ai-send-btn" id="aiSendBtn" aria-label="Send message">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
 <script src="menu.js"></script>
 <script src="script.js"></script>
+<script src="ai-assistant.js"></script>
 </body>
 </html>
