@@ -1,0 +1,61 @@
+name: Build Royal Feast AAB + APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE: https://theroyalfeast.in
+      ORG: com.royalfeast
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Create android folder
+        run: |
+          cp -r lib /tmp/rf_lib_keep && cp -r test /tmp/rf_test_keep
+          flutter create --org "$ORG" --project-name royal_feast_app --platforms android .
+          rm -rf lib test && mv /tmp/rf_lib_keep lib && mv /tmp/rf_test_keep test
+      - name: Upload key (from GitHub secrets)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=upload-keystore.jks\n' "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+            echo "Release signing ON"
+          else
+            echo "::warning::No keystore secrets found - building with debug key (NOT valid for Play Store)"
+          fi
+      - name: Patch android (permissions, minSdk, desugaring, signing)
+        run: python3 tool/patch_android.py
+      - run: flutter pub get
+      - name: App icon
+        run: dart run flutter_launcher_icons
+      - name: Analyze (log only)
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | tee analyze.txt || true
+      - name: Build AAB (Play Store)
+        run: flutter build appbundle --release --dart-define=API_BASE=$API_BASE
+      - name: Build APK (install on phone)
+        run: flutter build apk --release --dart-define=API_BASE=$API_BASE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: royal-feast-aab-playstore
+          path: build/app/outputs/bundle/release/app-release.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: royal-feast-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analyze-log
+          path: analyze.txt
